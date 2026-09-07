@@ -638,3 +638,6 @@ gSpecials::
 	def_special UpdateTrainerCardPhotoIcons
 	def_special StickerManGetBragFlags
 	def_special CheckAddCoins
+	def_special Script_GetTrainerRank
+	def_special Script_SetTrainerRank
+	def_special Script_BufferTrainerRankName

@@ -1,3 +1,47 @@
+@ LA development-only rank tester. Remove before story implementation.
+@ The appended NPC at (10, 14) is isolated from all existing map triggers.
+LittlerootTown_EventScript_TrainerRankDev::
+	lock
+	faceplayer
+	msgbox LittlerootTown_Text_TrainerRankDev, MSGBOX_DEFAULT
+	closemessage
+	dynmultipush LittlerootTown_Text_TrainerRankView, TRAINER_RANK_COUNT
+	setvar VAR_0x8004, TRAINER_RANK_ROOKIE
+LittlerootTown_EventScript_TrainerRankDev_BuildMenu:
+	special Script_BufferTrainerRankName
+	dynmultipush LittlerootTown_Text_TrainerRankOption, VAR_0x8004
+	addvar VAR_0x8004, 1
+	goto_if_lt VAR_0x8004, TRAINER_RANK_COUNT, LittlerootTown_EventScript_TrainerRankDev_BuildMenu
+	dynmultipush LittlerootTown_Text_TrainerRankCancel, (TRAINER_RANK_COUNT + 1)
+	dynmultistack 1, 1, FALSE, 8, FALSE, TRAINER_RANK_COUNT, DYN_MULTICHOICE_CB_NONE
+	goto_if_eq VAR_RESULT, TRAINER_RANK_COUNT, LittlerootTown_EventScript_TrainerRankDev_View
+	goto_if_ge VAR_RESULT, TRAINER_RANK_COUNT, LittlerootTown_EventScript_TrainerRankDev_End
+	copyvar VAR_0x8004, VAR_RESULT
+	specialvar VAR_RESULT, Script_SetTrainerRank
+LittlerootTown_EventScript_TrainerRankDev_View:
+	specialvar VAR_RESULT, Script_GetTrainerRank
+	msgbox LittlerootTown_Text_TrainerRankCurrent, MSGBOX_DEFAULT
+LittlerootTown_EventScript_TrainerRankDev_End:
+	release
+	end
+
+LittlerootTown_Text_TrainerRankDev:
+	.string "Development Trainer Rank tester.\n"
+	.string "View your rank or choose one to set.$"
+
+LittlerootTown_Text_TrainerRankView:
+	.string "View current rank$"
+
+LittlerootTown_Text_TrainerRankOption:
+	.string "Set {STR_VAR_1}$"
+
+LittlerootTown_Text_TrainerRankCancel:
+	.string "Cancel$"
+
+LittlerootTown_Text_TrainerRankCurrent:
+	.string "Your current Trainer Rank\n"
+	.string "is {STR_VAR_1}.$"
+
 LittlerootTown_MapScripts::
 	map_script MAP_SCRIPT_ON_TRANSITION, LittlerootTown_OnTransition
 	map_script MAP_SCRIPT_ON_FRAME_TABLE, LittlerootTown_OnFrame
