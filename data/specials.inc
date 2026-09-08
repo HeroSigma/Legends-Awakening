@@ -645,3 +645,11 @@ gSpecials::
 	def_special Script_OpenFieldLog, waitstate=TRUE
 	def_special Script_FieldLogDevAdvance
 	def_special Script_FieldLogDevReset
+	def_special Script_GetWorldPhase
+	def_special Script_SetWorldPhase
+	def_special Script_GetRegionWorldState
+	def_special Script_SetRegionWorldState
+	def_special Script_IsWorldPhaseAtLeast
+	def_special Script_IsRegionWorldStateAtLeast
+	def_special Script_BufferWorldPhaseName
+	def_special Script_BufferWorldRegionName

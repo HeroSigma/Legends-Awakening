@@ -2,10 +2,10 @@
 
 - Project: Pokémon Emerald: Legends Awakening
 - Base: pokeemerald-expansion 1.17.0
-- Current milestone: LA v0.2.0 - Field Log / Quest Framework
-- Current development branch: feature/field-log (milestone branch)
-- Current gameplay state: expansion baseline with independent Trainer Rank and
-  Field Log systems, plus isolated Littleroot development testers
+- Current milestone: LA v0.3.0 - World State Framework
+- Current development branch: feature/world-state
+- Current gameplay state: expansion baseline with independent Trainer Rank,
+   Field Log, and World State systems, plus isolated Littleroot development testers
 - First custom system: Trainer Rank
 
 LA v0.0.1 is a minimal branding and baseline milestone. `LEGENDS AWAK` is
@@ -225,6 +225,88 @@ normal ROM build (`make -j8`) and `git diff --check` passed. Automated record
 round trips and menu smoke tests do not replace the manual visual and in-game
 save/restart checklist above; those checks remain for emulator playtesting.
 
-Next planned milestone: **LA v0.3.0 - World State & Dynamic Encounter Framework**.
-That milestone is not implemented here. Foreign Footprints and all other
-Legends Awakening story quests are intentionally absent.
+## LA v0.3.0 - World State Framework
+
+World State is a centralized persistent-variable API for the condition and
+progression of the game world. It is intentionally separate from Trainer Rank,
+which represents player recognition and authority, and Field Log, which
+represents quests and objectives. No system automatically changes another.
+
+The region enum currently contains Hoenn, Johto, Kanto, Sevii, and Sinnoh, but
+the API uses a count-based enum so future regions can be appended without
+changing callers. Region values are generic unsigned progression values; no
+unfinished story chapter names are encoded. World phases are similarly generic:
+Beginning, Rookie, Rising, Ace, Elite, Master, and Legend. These names are
+World Phase names only and are not aliases for Trainer Rank.
+
+### Persistent variable audit
+
+World State uses the existing persistent `SaveBlock1.vars` system and does not
+modify any SaveBlock layout. The six reserved IDs are:
+
+| Symbol | Hex | Decimal | Meaning |
+| --- | --- | ---: | --- |
+| `VAR_WORLD_PHASE` | `0x40F8` | 16632 | Global World Phase |
+| `VAR_WORLD_STATE_HOENN` | `0x40F9` | 16633 | Hoenn state |
+| `VAR_WORLD_STATE_JOHTO` | `0x40FA` | 16634 | Johto state |
+| `VAR_WORLD_STATE_KANTO` | `0x40FB` | 16635 | Kanto state |
+| `VAR_WORLD_STATE_SEVII` | `0x40FC` | 16636 | Sevii state |
+| `VAR_WORLD_STATE_SINNOH` | `0x40FD` | 16637 | Sinnoh state |
+
+Before reservation, `vars.h` marked all six slots unused. `vars_frlg.h`
+contains only the old numeric `VAR_0x40F8` through `VAR_0x40FD` aliases; a
+repository-wide symbolic and numeric search found no gameplay consumers,
+configuration aliases, or script references. The slots are persistent IDs in
+the `0x4000-0x40FF` range, outside temporary variables, object-graphics
+variables, and special variables. The existing Trainer Rank reservation at
+`0x40F7` is unchanged. The old FRLG aliases remain untouched for compatibility
+documentation and must not be allocated independently later.
+
+### Public API and scripts
+
+The centralized API is in `include/world_state.h` and `src/world_state.c`:
+
+- `GetWorldPhase`, `SetWorldPhase`, `IsWorldPhaseAtLeast`
+- `GetRegionWorldState`, `SetRegionWorldState`, `IsRegionWorldStateAtLeast`
+- `GetWorldPhaseName`, `GetWorldRegionName`
+
+Invalid phase reads return Beginning without rewriting storage. Invalid phase
+setters and comparisons return `FALSE`. Invalid region reads return zero,
+invalid region setters and comparisons return `FALSE`, and no invalid request
+can modify another region. Script adapters use `VAR_0x8004` for a phase or
+region argument and `VAR_0x8005` for a region state/comparison threshold:
+
+- `Script_GetWorldPhase`, `Script_SetWorldPhase`
+- `Script_GetRegionWorldState`, `Script_SetRegionWorldState`
+- `Script_IsWorldPhaseAtLeast`, `Script_IsRegionWorldStateAtLeast`
+- `Script_BufferWorldPhaseName`, `Script_BufferWorldRegionName`
+
+All script arguments are validated as full `u16` values before reaching the
+typed C API. Map scripts should use these specials rather than raw variable
+access.
+
+### Development tester
+
+The separate World State scientist at Littleroot `(12, 16)` is development-only
+and does not alter the existing Trainer Rank or Field Log scientists. It can
+view the current global phase and all five region values, set all seven generic
+global phases, increment or reset Hoenn state, and display proof dialogue:
+
+- Hoenn state 0: “The world is quiet.”
+- Hoenn state 1: “Something has changed in Hoenn.”
+- Hoenn state 2 or higher: “The situation is getting worse.”
+
+These strings and interactions are a framework test, not story canon. Remove
+the tester before story implementation.
+
+World State is not connected to quests, Trainer Rank promotion, encounters,
+region travel, Reversal, NPC cast changes, badges, gyms, or story progression.
+
+Next planned milestone: **LA v0.4.0 - Dynamic Encounter Framework**.
+That milestone is not implemented here.
+
+
+World State implementation details, full script calling conventions, extension
+rules, file manifest and the manual save/restart checklist are in
+[WORLD_STATE.md](WORLD_STATE.md). The tester is development-only; proof dialogue
+is selected through its menu and is not a story event.

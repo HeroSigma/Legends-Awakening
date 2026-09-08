@@ -267,12 +267,12 @@
 #define VAR_SCOTT_BF_CALL_STEP_COUNTER                   0x40F5
 #define VAR_RIVAL_RAYQUAZA_CALL_STEP_COUNTER             0x40F6
 #define VAR_TRAINER_RANK                                 0x40F7 // LA: persistent rank; audited unused in expansion 1.17.0.
-#define VAR_UNUSED_0x40F8                                0x40F8 // Unused Var
-#define VAR_UNUSED_0x40F9                                0x40F9 // Unused Var
-#define VAR_UNUSED_0x40FA                                0x40FA // Unused Var
-#define VAR_UNUSED_0x40FB                                0x40FB // Unused Var
-#define VAR_UNUSED_0x40FC                                0x40FC // Unused Var
-#define VAR_UNUSED_0x40FD                                0x40FD // Unused Var
+#define VAR_WORLD_PHASE                                  0x40F8 // LA: persistent world phase
+#define VAR_WORLD_STATE_HOENN                            0x40F9 // LA: persistent region state
+#define VAR_WORLD_STATE_JOHTO                            0x40FA // LA: persistent region state
+#define VAR_WORLD_STATE_KANTO                            0x40FB // LA: persistent region state
+#define VAR_WORLD_STATE_SEVII                            0x40FC // LA: persistent region state
+#define VAR_WORLD_STATE_SINNOH                           0x40FD // LA: persistent region state
 #define VAR_UNUSED_0x40FE                                0x40FE // Unused Var
 #define VAR_UNUSED_0x40FF                                0x40FF // Unused Var
 
