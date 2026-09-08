@@ -23,6 +23,7 @@
 #include "trig.h"
 #include "pokedex_area_region_map.h"
 #include "wild_encounter.h"
+#include "dynamic_encounters.h"
 #include "window.h"
 #include "constants/region_map_sections.h"
 #include "constants/rgb.h"
@@ -340,7 +341,7 @@ static void FindMapsWithMon(enum Species species)
         if (GetRegionMapType(headerSectionId) != currentRegionMapType)
             continue;
 
-        if (MapHasSpecies(&gWildMonHeaders[i].encounterTypes[gAreaTimeOfDay], headerSectionId, species))
+        if (MapHasSpecies(GetEffectiveWildEncounterTypes(i, gAreaTimeOfDay), headerSectionId, species))
         {
             switch (gWildMonHeaders[i].mapGroup)
             {

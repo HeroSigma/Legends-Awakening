@@ -653,3 +653,4 @@ gSpecials::
 	def_special Script_IsRegionWorldStateAtLeast
 	def_special Script_BufferWorldPhaseName
 	def_special Script_BufferWorldRegionName
+	def_special Script_InspectDynamicEncounters
