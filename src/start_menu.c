@@ -43,6 +43,7 @@
 #include "text.h"
 #include "text_window.h"
 #include "trainer_card.h"
+#include "quests.h"
 #include "window.h"
 #include "union_room.h"
 #include "dexnav.h"
@@ -69,6 +70,7 @@ enum
     MENU_ACTION_PYRAMID_BAG,
     MENU_ACTION_DEBUG,
     MENU_ACTION_DEXNAV,
+    MENU_ACTION_FIELD_LOG,
 };
 
 // Save status
@@ -88,7 +90,7 @@ EWRAM_DATA static u8 sSafariBallsWindowId = 0;
 EWRAM_DATA static u8 sBattlePyramidFloorWindowId = 0;
 EWRAM_DATA static u8 sStartMenuCursorPos = 0;
 EWRAM_DATA static u8 sNumStartMenuActions = 0;
-EWRAM_DATA static u8 sCurrentStartMenuActions[9] = {0};
+EWRAM_DATA static u8 sCurrentStartMenuActions[10] = {0};
 EWRAM_DATA static s8 sInitStartMenuData[2] = {0};
 
 EWRAM_DATA static u8 (*sSaveDialogCallback)(void) = NULL;
@@ -111,6 +113,7 @@ static bool8 StartMenuBattlePyramidRetireCallback(void);
 static bool8 StartMenuBattlePyramidBagCallback(void);
 static bool8 StartMenuDebugCallback(void);
 static bool8 StartMenuDexNavCallback(void);
+static bool8 StartMenuFieldLogCallback(void);
 
 // Menu callbacks
 static bool8 SaveStartCallback(void);
@@ -187,6 +190,8 @@ static const struct WindowTemplate sWindowTemplate_PyramidPeak = {
     .baseBlock = 0x8
 };
 
+static const u8 sText_FieldLog[] = _("FIELD LOG");
+
 static const u8 sText_MenuDebug[] = _("DEBUG");
 
 static const struct MenuAction sStartMenuItems[] =
@@ -206,6 +211,7 @@ static const struct MenuAction sStartMenuItems[] =
     [MENU_ACTION_PYRAMID_BAG]     = {gText_MenuBag,     {.u8_void = StartMenuBattlePyramidBagCallback}},
     [MENU_ACTION_DEBUG]           = {sText_MenuDebug,   {.u8_void = StartMenuDebugCallback}},
     [MENU_ACTION_DEXNAV]          = {gText_MenuDexNav,  {.u8_void = StartMenuDexNavCallback}},
+    [MENU_ACTION_FIELD_LOG]       = {sText_FieldLog, {.u8_void = StartMenuFieldLogCallback}},
 };
 
 static const struct BgTemplate sBgTemplates_LinkBattleSave[] =
@@ -338,6 +344,7 @@ static void BuildNormalStartMenu(void)
     if (FlagGet(FLAG_SYS_POKENAV_GET) == TRUE)
         AddStartMenuAction(MENU_ACTION_POKENAV);
 
+    AddStartMenuAction(MENU_ACTION_FIELD_LOG);
     AddStartMenuAction(MENU_ACTION_PLAYER);
     AddStartMenuAction(MENU_ACTION_SAVE);
     AddStartMenuAction(MENU_ACTION_OPTION);
@@ -354,6 +361,7 @@ static void BuildDebugStartMenu(void)
     AddStartMenuAction(MENU_ACTION_BAG);
     if (FlagGet(FLAG_SYS_POKENAV_GET) == TRUE)
         AddStartMenuAction(MENU_ACTION_POKENAV);
+    AddStartMenuAction(MENU_ACTION_FIELD_LOG);
     AddStartMenuAction(MENU_ACTION_PLAYER);
     AddStartMenuAction(MENU_ACTION_SAVE);
     AddStartMenuAction(MENU_ACTION_OPTION);
@@ -480,20 +488,26 @@ static void RemoveExtraStartMenuWindows(void)
     }
 }
 
+// Ten normal entries (including DexNav + Field Log) must fit the 160px screen.
+static u8 StartMenuTextY(u8 index)
+{
+    return sNumStartMenuActions > 8 ? 2 + index * 14 : 9 + index * 16;
+}
+
 static bool32 PrintStartMenuActions(s8 *pIndex, u32 count)
 {
     s8 index = *pIndex;
 
     do
     {
-        if (sStartMenuItems[sCurrentStartMenuActions[index]].func.u8_void == StartMenuPlayerNameCallback)
+        if (sNumStartMenuActions <= 8 && sStartMenuItems[sCurrentStartMenuActions[index]].func.u8_void == StartMenuPlayerNameCallback)
         {
-            PrintPlayerNameOnWindow(GetStartMenuWindowId(), sStartMenuItems[sCurrentStartMenuActions[index]].text, 8, (index << 4) + 9);
+            PrintPlayerNameOnWindow(GetStartMenuWindowId(), sStartMenuItems[sCurrentStartMenuActions[index]].text, 8, StartMenuTextY(index));
         }
         else
         {
             StringExpandPlaceholders(gStringVar4, sStartMenuItems[sCurrentStartMenuActions[index]].text);
-            AddTextPrinterParameterized(GetStartMenuWindowId(), FONT_NORMAL, gStringVar4, 8, (index << 4) + 9, TEXT_SKIP_DRAW, NULL);
+            AddTextPrinterParameterized(GetStartMenuWindowId(), sNumStartMenuActions > 8 ? FONT_SMALL : FONT_NORMAL, gStringVar4, 8, StartMenuTextY(index), TEXT_SKIP_DRAW, NULL);
         }
 
         index++;
@@ -542,7 +556,7 @@ static bool32 InitStartMenuStep(void)
             sInitStartMenuData[0]++;
         break;
     case 5:
-        sStartMenuCursorPos = InitMenuNormal(GetStartMenuWindowId(), FONT_NORMAL, 0, 9, 16, sNumStartMenuActions, sStartMenuCursorPos);
+        sStartMenuCursorPos = InitMenuNormal(GetStartMenuWindowId(), sNumStartMenuActions > 8 ? FONT_SMALL : FONT_NORMAL, 0, StartMenuTextY(0), sNumStartMenuActions > 8 ? 14 : 16, sNumStartMenuActions, sStartMenuCursorPos);
         CopyWindowToVram(GetStartMenuWindowId(), COPYWIN_MAP);
         return TRUE;
     }
@@ -733,6 +747,17 @@ static bool8 StartMenuPokeNavCallback(void)
     }
 
     return FALSE;
+}
+
+static bool8 StartMenuFieldLogCallback(void)
+{
+    if (gPaletteFade.active)
+        return FALSE;
+    PlayRainStoppingSoundEffect();
+    RemoveExtraStartMenuWindows();
+    CleanupOverworldWindowsAndTilemaps();
+    QuestMenu_Init(QUEST_NONE, CB2_ReturnToFieldWithOpenMenu);
+    return TRUE;
 }
 
 static bool8 StartMenuPlayerNameCallback(void)

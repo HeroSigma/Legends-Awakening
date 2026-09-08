@@ -24,6 +24,7 @@
 #include "constants/decorations.h"
 #include "constants/difficulty.h"
 #include "constants/trainer_rank.h"
+#include "constants/quests.h"
 #include "constants/easy_chat.h"
 #include "constants/event_objects.h"
 #include "constants/event_object_movement.h"
@@ -1739,3 +1740,6 @@ EventScript_PalletTown_PlayersHouse_2F_TurnOnPC::
 	.include "data/scripts/battle_frontier.inc"
 	.include "data/scripts/apricorn_tree.inc"
 	.include "data/scripts/wild_encounter.inc"
+
+	@ LA development-only Field Log tester; remove before story implementation.
+	.include "data/scripts/field_log_dev.inc"

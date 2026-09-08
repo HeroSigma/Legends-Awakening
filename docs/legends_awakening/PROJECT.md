@@ -2,15 +2,15 @@
 
 - Project: Pokémon Emerald: Legends Awakening
 - Base: pokeemerald-expansion 1.17.0
-- Current milestone: LA v0.1.0 - Trainer Rank Foundation
-- Current development branch: legends-awakening-dev
-- Current gameplay state: expansion baseline with an independent Trainer Rank API
-  and an isolated, temporary Littleroot development tester
+- Current milestone: LA v0.2.0 - Field Log / Quest Framework
+- Current development branch: feature/field-log (milestone branch)
+- Current gameplay state: expansion baseline with independent Trainer Rank and
+  Field Log systems, plus isolated Littleroot development testers
 - First custom system: Trainer Rank
 
 LA v0.0.1 is a minimal branding and baseline milestone. `LEGENDS AWAK` is
 the internal GBA ROM header identifier, not the full visible game title.
-Title-screen graphics and gameplay remain unchanged.
+That milestone left title-screen graphics and gameplay unchanged.
 
 The base compatibility metadata, including the GF game name and RHHEXP
 header layout, is preserved.
@@ -100,15 +100,131 @@ Manual persistence check:
 7. Talk to the scientist and select View current rank; confirm Rising.
 8. Optionally check every other Set option, demotion to Rookie, and Cancel/B.
 
-### Scope and next milestone
+### LA v0.1.0 scope (historical)
 
-No promotion conditions, automatic promotions, rewards, Field Log, quests,
-world-state system, story progression, or Trainer Card redesign are implemented.
-Save layouts, Trainer Card/link formats, battles, Pokémon, encounters, Gym/badge
+At LA v0.1.0, no promotion conditions, automatic promotions, rewards, Field Log, quests,
+world-state system, story progression, or Trainer Card redesign were implemented.
+At that milestone, save layouts, Trainer Card/link formats, battles, Pokémon, encounters, Gym/badge
 logic, Start Menu, title graphics, and expansion compatibility metadata remain
 unchanged. Older baseline saves retain their layout; an invalid rank value is
 read safely without silently rewriting the save.
 
-Next planned milestone: **LA v0.2.0 - Field Log / Quest Framework**.
-The planned Field Log will use the ported Unbound Quest Menu as its foundation;
-no menu port or quest implementation is part of LA v0.1.0.
+## LA v0.2.0 - Field Log / Quest Framework
+
+This milestone ports and adapts the Unbound Quest Menu from PokemonSanFran's
+`unbound-quest-menu` branch at commit `c34ebdd80f78f751edbac83ee10d7fc4f0273746`.
+The upstream implementation was manually compared with expansion 1.17.0;
+vanilla files were not merged directly. The upstream `SaveBlock2` quest and
+subquest bit arrays were replaced with an isolated, versioned 104-byte record
+appended to the existing `SaveBlock3`. A magic, version, and Fletcher checksum
+allow old saves to read as locked quests. Reads never initialize storage. An
+explicit write initializes a missing magic; recognized records with an unknown
+version or invalid checksum are preserved and reject writes. The record is included in the normal SaveBlock3 sector copy,
+so Trainer Rank's `VAR_TRAINER_RANK` remains independent and unchanged.
+
+Quest states are Locked (0), Active (1), Reward Available (2), and Complete
+(3). Quest definitions are ROM-resident and support title, descriptions,
+objective text, location, NPC/item/Pokemon graphic, reward item, category,
+favorite state, and child subquests. Child objectives use globally unique bits
+in the isolated record. The public API in `include/quests.h` is the only
+storage interface map scripts need: it covers state, activation, completion,
+subquest progress, rewards, favorites, definitions, and save validation.
+
+The script adapter `Script_QuestCommand` supports starting, querying, setting,
+and completing quests and subquests, marking rewards available, and claiming
+rewards. `Script_OpenFieldLog` opens the menu from scripts. The normal overworld
+Start Menu includes **FIELD LOG** only; link, Union Room, Safari Zone, Battle
+Pike, Battle Pyramid, and multi-partner restricted menus retain their existing
+entries. The menu preserves the upstream parent/subquest view, state filters,
+favorite ordering, alphabetical sorting, location/objective/reward details,
+and icon support, using expansion 1.17.0's tagged Pokemon/item sprite APIs and
+current decompression/text/window APIs.
+
+The **southern scientist at (10, 16), east of Birch's lab**, is the Field Log
+tester. The original Trainer Rank scientist at (10, 14) is unchanged. These NPCs
+and the two definitions in `src/data/quests.h` are development-only, not canon.
+The tester advances one step per interaction, with reward-ready and claiming
+on separate visits. After completion it offers development tools.
+
+Manual emulator checklist:
+
+1. Start a new game or load the existing save. If loading while already in
+   Littleroot, enter and exit a building to refresh map objects. Open FIELD LOG
+   before talking to the southern scientist: both quests should be Locked.
+2. Talk to the southern scientist once. This activates **Framework Test** only.
+   Open FIELD LOG, highlight it and press A to view its three pending children.
+3. Talk to the scientist three more times. Each interaction completes one child.
+   Inspect the child states and NPC/Pokemon/item icons between interactions.
+4. The third advance marks the reward available without claiming it. Open
+   FIELD LOG and verify Reward Available; save and restart here if desired.
+5. Talk again to claim one Potion. Verify Complete and a single added Potion.
+   A full bag must leave the reward available and permit retry after making
+   space. Later interactions offer tools instead of granting another reward.
+6. Use Select to favorite a parent, R to cycle state filters, Start for A-Z,
+   and B to return from children/close. Empty filters retain Close.
+7. Save through the normal Save menu, close the emulator completely, reopen
+   the same ROM/save, and choose Continue (not an emulator save state). Verify
+   completion, all child states and favorite status persist. Also repeat while
+   Active and Reward Available; activation itself does not advance a child.
+8. After completion, talk again for **Open FIELD LOG**, **Activate Icon Test**,
+   **Reset test quests**, and Cancel. Opening here also tests script focus and
+   returning control to the field. Icon Test has no children and remains Active
+   until completed through the shared API. Reset requires confirmation and
+   clears only development quest data, not Trainer Rank or previously given items.
+9. Verify the northern scientist still reads/sets Trainer Rank. Test B/Cancel
+   and reopening the Field Log repeatedly. Reset is development-only and permits
+   repeating test rewards; it must be removed before story implementation.
+
+The normal Start menu now has capacity for ten entries, including DexNav and
+FIELD LOG. Menus longer than eight entries use smaller text and 14px spacing
+inside an 18-tile-high window. The shared Start window is one tile wider to fit
+FIELD LOG; restricted menu entries are unchanged. Check the fully unlocked
+normal menu, debug configuration, Safari, link and Frontier menus in an emulator.
+
+### Storage and API details
+
+The pre-port save-size tests measured SaveBlock1=15568, SaveBlock2=3884 and
+SaveBlock3=4 bytes. SaveBlock3 is now 108/1624 bytes: its old four-byte prefix
+is intact and the 104-byte quest payload starts at offset 4. No sector layout,
+SaveBlock1/2 field, or existing expansion feature was removed. Capacities are
+fixed at 64 parent quests and 256 global child bits independently of the current
+two definitions. Keep IDs and v1 offsets stable. Enabling configuration options
+that add earlier SaveBlock3 fields requires a separate save migration audit.
+Older binaries do not preserve the new record reliably: back up before downgrade.
+
+`QuestStart`, `QuestSetState`, `QuestComplete`, `QuestCompleteSubquest`,
+`QuestIsSubquestComplete`, `QuestAreAllSubquestsComplete`,
+`QuestMarkRewardAvailable`, `QuestClaimReward`, `QuestGetState`,
+`QuestGetDefinition`, `QuestGetObjective`, `QuestGetStateName`,
+`QuestIsFavorite`, `QuestSetFavorite` and `QuestSaveIsValid` form the C API.
+Normal state transitions are monotonic. Explicit `QuestComplete` marks complete
+without giving items; `QuestClaimReward` grants the defined item only from the
+reward state. No real promotion or story rules are attached.
+
+For `specialvar VAR_RESULT, Script_QuestCommand`, pass the quest ID in
+VAR_0x8004, a QUEST_CMD_* operation in VAR_0x8005, and state/child index in
+VAR_0x8006. IDs are validated before narrowing. The result is the state for GET
+or TRUE/FALSE for mutations. `special Script_OpenFieldLog` takes an optional
+focus quest in VAR_0x8004 (QUEST_NONE for default), waits implicitly and resumes
+the script on close. Append-only specials avoid changing expansion opcodes.
+
+Upstream-style subquests are a parent plus a list of child objectives, not an
+arbitrarily recursive quest tree. Stable global child IDs allow multiple parent
+quests; deeper future groupings require an explicit extension. Category metadata
+supports Main, Regional, Character, Exploration, Faction, Gym and Development;
+the current filters are by state, not category. No real quests are included.
+
+Focused tests in `test/quests.c` cover locked and invalid IDs, activation,
+save-record round trips, favorite persistence, child completion, reward-ready,
+reward claim, complete state, and invalid child/state requests. Additional tests cover full-bag reward retry and menu opening, filters,
+parent/child icon navigation, repeated closing, and resource cleanup.
+
+Validation completed with the existing mGBA runner: all 10 Field Log tests,
+all 5 Trainer Rank tests, and all 3 SaveBlock size checks passed. The final
+normal ROM build (`make -j8`) and `git diff --check` passed. Automated record
+round trips and menu smoke tests do not replace the manual visual and in-game
+save/restart checklist above; those checks remain for emulator playtesting.
+
+Next planned milestone: **LA v0.3.0 - World State & Dynamic Encounter Framework**.
+That milestone is not implemented here. Foreign Footprints and all other
+Legends Awakening story quests are intentionally absent.

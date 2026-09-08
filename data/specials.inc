@@ -641,3 +641,7 @@ gSpecials::
 	def_special Script_GetTrainerRank
 	def_special Script_SetTrainerRank
 	def_special Script_BufferTrainerRankName
+	def_special Script_QuestCommand
+	def_special Script_OpenFieldLog, waitstate=TRUE
+	def_special Script_FieldLogDevAdvance
+	def_special Script_FieldLogDevReset

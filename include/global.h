@@ -254,6 +254,8 @@ struct NPCFollower
 #include "constants/items.h"
 #define ITEM_FLAGS_COUNT ((ITEMS_COUNT / 8) + ((ITEMS_COUNT % 8) ? 1 : 0))
 
+#include "quest_save.h"
+
 struct SaveBlock3
 {
 #if OW_USE_FAKE_RTC
@@ -272,6 +274,8 @@ struct SaveBlock3
 #if APRICORN_TREE_COUNT > 0
     u8 apricornTrees[NUM_APRICORN_TREE_BYTES];
 #endif
+    // LA: append-only, versioned Field Log record; preserve all preceding fields.
+    struct QuestSaveData quests;
 }; /* max size 1624 bytes */
 
 extern struct SaveBlock3 *gSaveBlock3Ptr;
