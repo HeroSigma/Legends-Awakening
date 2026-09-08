@@ -128,9 +128,11 @@ TEST("Dynamic Encounter: effective land tables change immediately at every time"
         EXPECT_EQ(GetEffectiveWildEncounterTypes(header, time), &gWildMonHeaders[header].encounterTypes[time]);
         EXPECT(SetRegionWorldState(WORLD_REGION_HOENN, 1));
         for (slot = 0; slot < NUM_LAND_MONS_ENCOUNTER_SLOTS; slot++)
-            EXPECT_EQ(GetEffectiveWildEncounterTypes(header, time)->landMonsInfo->wildPokemon[slot].species, SPECIES_MAGIKARP);
+            EXPECT_EQ(GetEffectiveWildEncounterTypes(header, time)->landMonsInfo->wildPokemon[slot].species,
+                time == TIME_MORNING ? SPECIES_SABLEYE : time == TIME_DAY ? SPECIES_TREECKO : time == TIME_EVENING ? SPECIES_MAGIKARP : SPECIES_WAILMER);
         EXPECT(SetRegionWorldState(WORLD_REGION_HOENN, 65535));
-        EXPECT_EQ(GetEffectiveWildEncounterTypes(header, time)->landMonsInfo->wildPokemon[0].species, SPECIES_WAILMER);
+        EXPECT_EQ(GetEffectiveWildEncounterTypes(header, time)->landMonsInfo->wildPokemon[0].species,
+            time == TIME_MORNING ? SPECIES_TREECKO : time == TIME_DAY ? SPECIES_GROVYLE : time == TIME_EVENING ? SPECIES_MAGIKARP : SPECIES_WAILMER);
     }
     EXPECT_EQ(GetEffectiveWildEncounterTypes(HEADER_NONE, 0)->landMonsInfo, NULL);
     EXPECT_EQ(GetEffectiveWildEncounterTypes(header, TIMES_OF_DAY_COUNT)->landMonsInfo, NULL);
@@ -186,7 +188,8 @@ TEST("Dynamic Encounter: normal generator consumes profile and outbreak remains 
     EXPECT(SetRegionWorldState(WORLD_REGION_HOENN, 1));
     header = GetCurrentMapWildMonHeaderId();
     EXPECT(TryGenerateWildMon(GetEffectiveWildEncounterTypes(header, TIME_OF_DAY_DEFAULT)->landMonsInfo, WILD_AREA_LAND, 0));
-    EXPECT_EQ(GetMonData(&gParties[B_TRAINER_OPPONENT_A][0], MON_DATA_SPECIES), SPECIES_MAGIKARP);
+    EXPECT_EQ(GetMonData(&gParties[B_TRAINER_OPPONENT_A][0], MON_DATA_SPECIES),
+        GetEffectiveWildEncounterTypes(header, TIME_OF_DAY_DEFAULT)->landMonsInfo->wildPokemon[0].species);
     gSaveBlock1Ptr->outbreakLocationMapGroup = MAP_GROUP(MAP_ROUTE101);
     gSaveBlock1Ptr->outbreakLocationMapNum = MAP_NUM(MAP_ROUTE101);
     gSaveBlock1Ptr->outbreakDaysLeft = 1;

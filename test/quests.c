@@ -132,7 +132,7 @@ TEST("Field Log: serialized capacity and original SaveBlock3 prefix stay fixed")
 {
     EXPECT_EQ(sizeof(struct QuestSaveData), 104);
     EXPECT_EQ(offsetof(struct SaveBlock3, quests), 4);
-    EXPECT_EQ(sizeof(struct SaveBlock3), 108);
+    EXPECT_EQ(sizeof(struct SaveBlock3), 124);
     EXPECT_EQ(sizeof(struct SaveBlock1), 15568);
     EXPECT_EQ(sizeof(struct SaveBlock2), 3884);
 }

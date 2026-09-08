@@ -2,8 +2,8 @@
 
 - Project: Pokémon Emerald: Legends Awakening
 - Base: pokeemerald-expansion 1.17.0
-- Current milestone: LA v0.3.0 - World State Framework
-- Current development branch: feature/world-state
+- Current milestone: LA v0.5.0 - Wild Scaling & Evolution Framework
+- Current development branch: feature/wild-scaling
 - Current gameplay state: expansion baseline with independent Trainer Rank,
    Field Log, and World State systems, plus isolated Littleroot development testers
 - First custom system: Trainer Rank
@@ -302,8 +302,25 @@ the tester before story implementation.
 World State is not connected to quests, Trainer Rank promotion, encounters,
 region travel, Reversal, NPC cast changes, badges, gyms, or story progression.
 
-Next planned milestone: **LA v0.4.0 - Dynamic Encounter Framework**.
-That milestone is not implemented here.
+## LA v0.5.0 - Wild Scaling & Evolution Framework
+
+Wild encounters now use a centralized runtime scaling framework after the
+existing time-of-day and Dynamic Encounter profile selection. It derives a
+World Level from independent Trainer Rank and World Phase values plus the
+strongest three usable party levels, applies ROM-resident map modifiers and
+bounded variation, and resolves only explicitly configured evolutionary
+families. Scaling itself adds no save fields and leaves static, scripted, trainer, gift,
+egg, legendary, mythical, boss, roamer, and facility-specific encounters
+outside normal scaling.
+
+The framework, focused tests, development inspector contract, exclusions,
+manual checklist, and future habitat extension point are documented in
+[WILD_SCALING.md](WILD_SCALING.md). The fake-RTC compatibility audit, append-only
+SaveBlock3 layout, and legacy conversion are documented in
+[SAVE_COMPATIBILITY.md](SAVE_COMPATIBILITY.md).
+
+Next planned milestone: **LA v0.6.0 - Rookie Rank / Foreign Footprints
+Prototype**.
 
 
 World State implementation details, full script calling conventions, extension

@@ -2,6 +2,7 @@
 #include "malloc.h"
 #include "berry_powder.h"
 #include "fake_rtc.h"
+#include "la_save.h"
 #include "follower_npc.h"
 #include "item.h"
 #include "load_save.h"
@@ -64,6 +65,7 @@ void ClearSav3(void)
 {
     CpuFill16(0, &gSaveblock3, sizeof(struct SaveBlock3));
     FakeRtc_Reset();
+    gSaveblock3.laLayoutTag = LA_SAVE_LAYOUT_V1;
 }
 
 void ClearSav2(void)

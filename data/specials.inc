@@ -654,3 +654,4 @@ gSpecials::
 	def_special Script_BufferWorldPhaseName
 	def_special Script_BufferWorldRegionName
 	def_special Script_InspectDynamicEncounters
+	def_special Script_InspectWildScaling

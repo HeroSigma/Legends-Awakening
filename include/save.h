@@ -110,6 +110,11 @@ u32 TryReadSpecialSaveSector(u8 sector, u8 *dst);
 u32 TryWriteSpecialSaveSector(u8 sector, u8 *src);
 void Task_LinkFullSave(u8 taskId);
 
+#if TESTING
+void TestCopyToSaveBlock3(u32 sectorId, struct SaveSector *sector);
+void TestCopyFromSaveBlock3(u32 sectorId, struct SaveSector *sector);
+#endif
+
 // save_failed_screen.c
 void DoSaveFailedScreen(u8 saveType);
 

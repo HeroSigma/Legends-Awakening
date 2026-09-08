@@ -258,9 +258,6 @@ struct NPCFollower
 
 struct SaveBlock3
 {
-#if OW_USE_FAKE_RTC
-    struct SiiRtcInfo fakeRTC;
-#endif
 #if FNPC_ENABLE_NPC_FOLLOWERS
     struct NPCFollower NPCfollower;
 #endif
@@ -276,6 +273,11 @@ struct SaveBlock3
 #endif
     // LA: append-only, versioned Field Log record; preserve all preceding fields.
     struct QuestSaveData quests;
+    // LA: keep the v0.2-v0.4 prefix fixed; append the clock and layout tag.
+#if OW_USE_FAKE_RTC
+    struct SiiRtcInfo fakeRTC;
+#endif
+    u32 laLayoutTag;
 }; /* max size 1624 bytes */
 
 extern struct SaveBlock3 *gSaveBlock3Ptr;

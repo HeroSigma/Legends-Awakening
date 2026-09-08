@@ -3,6 +3,8 @@
 
 #include "constants/quests.h"
 
+#define QUEST_SAVE_MAGIC 0x31474F4C // "LOG1"
+
 // Serialized little-endian GBA layout. Keep offsets/capacity stable within v1.
 // Stored in SaveBlock3; its native footer chunks lack a checksum of their own.
 struct QuestSaveData

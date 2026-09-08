@@ -11,7 +11,6 @@
 
 #include "data/quests.h"
 
-#define QUEST_MAGIC 0x31474F4C // "LOG1"
 #define QUEST_FAVORITE 0x80
 #define QUEST_STATE_MASK 0x03
 
@@ -46,7 +45,7 @@ static u16 QuestChecksum(const struct QuestSaveData *save)
 bool32 QuestSaveIsValid(void)
 {
     const struct QuestSaveData *save = &gSaveBlock3Ptr->quests;
-    return save->magic == QUEST_MAGIC && save->version == QUEST_SAVE_VERSION
+    return save->magic == QUEST_SAVE_MAGIC && save->version == QUEST_SAVE_VERSION
         && save->checksum == QuestChecksum(save);
 }
 
@@ -58,11 +57,11 @@ static void CommitQuestData(void)
 static bool32 PrepareQuestWrite(void)
 {
     struct QuestSaveData *save = &gSaveBlock3Ptr->quests;
-    if (save->magic != QUEST_MAGIC)
+    if (save->magic != QUEST_SAVE_MAGIC)
     {
         // Baseline saves have no record. Initialize only on an explicit write.
         memset(save, 0, sizeof(*save));
-        save->magic = QUEST_MAGIC;
+        save->magic = QUEST_SAVE_MAGIC;
         save->version = QUEST_SAVE_VERSION;
         CommitQuestData();
     }

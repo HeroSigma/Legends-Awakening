@@ -22,6 +22,7 @@
 #include "script.h"
 #include "tv.h"
 #include "wild_encounter.h"
+#include "wild_scaling.h"
 #include "dynamic_encounters.h"
 #include "battle_debug.h"
 #include "battle_pike.h"
@@ -530,6 +531,7 @@ bool8 TryGenerateWildMon(const struct WildPokemonInfo *wildMonInfo, enum WildPok
 {
     u8 wildMonIndex = 0;
     u8 level;
+    enum Species species;
 
     switch (area)
     {
@@ -574,13 +576,28 @@ bool8 TryGenerateWildMon(const struct WildPokemonInfo *wildMonInfo, enum WildPok
         break;
     }
 
+    species = wildMonInfo->wildPokemon[wildMonIndex].species;
     level = ChooseWildMonLevel(wildMonInfo->wildPokemon, wildMonIndex, area);
+    if (gMapHeader.mapLayoutId == LAYOUT_BATTLE_FRONTIER_BATTLE_PIKE_ROOM_WILD_MONS
+     || gMapHeader.mapLayoutId == LAYOUT_BATTLE_FRONTIER_BATTLE_PYRAMID_FLOOR)
+    {
+        // Frontier encounters retain their fixed facility level rules.
+    }
+    else
+    {
+        level = ApplyWildLevelScalingWithBaseLevel(species, level,
+            wildMonInfo->wildPokemon[wildMonIndex].minLevel,
+            wildMonInfo->wildPokemon[wildMonIndex].maxLevel,
+            gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum);
+        species = ResolveScaledWildSpeciesForArea(species, level,
+            gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum, area);
+    }
     if (flags & WILD_CHECK_REPEL && !IsWildLevelAllowedByRepel(level))
         return FALSE;
     if (gMapHeader.mapLayoutId != LAYOUT_BATTLE_FRONTIER_BATTLE_PIKE_ROOM_WILD_MONS && flags & WILD_CHECK_KEEN_EYE && !IsAbilityAllowingEncounter(level))
         return FALSE;
 
-    CreateWildMon(wildMonInfo->wildPokemon[wildMonIndex].species, level);
+    CreateWildMon(species, level);
     return TRUE;
 }
 
@@ -588,11 +605,18 @@ static u16 GenerateFishingWildMon(const struct WildPokemonInfo *wildMonInfo, u8 
 {
     u8 wildMonIndex = ChooseWildMonIndex_Fishing(rod);
     enum Species wildMonSpecies = wildMonInfo->wildPokemon[wildMonIndex].species;
+    enum Species resolvedSpecies;
     u8 level = ChooseWildMonLevel(wildMonInfo->wildPokemon, wildMonIndex, WILD_AREA_FISHING);
 
     UpdateChainFishingStreak();
-    CreateWildMon(wildMonSpecies, level);
-    return wildMonSpecies;
+    level = ApplyWildLevelScalingWithBaseLevel(wildMonSpecies, level,
+        wildMonInfo->wildPokemon[wildMonIndex].minLevel,
+        wildMonInfo->wildPokemon[wildMonIndex].maxLevel,
+        gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum);
+    resolvedSpecies = ResolveScaledWildSpeciesForArea(wildMonSpecies, level,
+        gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum, WILD_AREA_FISHING);
+    CreateWildMon(resolvedSpecies, level);
+    return resolvedSpecies;
 }
 
 static bool8 EncounterOddsCheck(u16 encounterRate)
@@ -959,6 +983,10 @@ void FishingWildEncounter(u8 rod)
         u8 level = ChooseWildMonLevel(&gWildFeebas, 0, WILD_AREA_FISHING);
 
         species = gWildFeebas.species;
+        level = ApplyWildLevelScalingWithBaseLevel(species, level, gWildFeebas.minLevel, gWildFeebas.maxLevel,
+            gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum);
+        species = ResolveScaledWildSpecies(species, level, gSaveBlock1Ptr->location.mapGroup,
+            gSaveBlock1Ptr->location.mapNum);
         CreateWildMon(species, level);
     }
     else

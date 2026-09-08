@@ -49,6 +49,7 @@
 #include "text.h"
 #include "text_window.h"
 #include "wild_encounter.h"
+#include "wild_scaling.h"
 #include "dynamic_encounters.h"
 #include "window.h"
 #include "constants/species.h"
@@ -793,6 +794,10 @@ static void SetUpDexNavSearch(void)
 {
     enum Species species = sDexNavSearchDataPtr->species;
     u8 searchLevel = GetSearchLevel(species);
+    enum WildPokemonArea area = sDexNavSearchDataPtr->environment == ENCOUNTER_TYPE_WATER ? WILD_AREA_WATER
+        : sDexNavSearchDataPtr->environment == ENCOUNTER_TYPE_HIDDEN ? WILD_AREA_HIDDEN : WILD_AREA_LAND;
+    u16 headerId = GetCurrentMapWildMonHeaderId();
+    enum TimeOfDay timeOfDay = GetTimeOfDayForEncounters(headerId, area);
 
     // init sprites
     sDexNavSearchDataPtr->iconSpriteId = MAX_SPRITES;
@@ -804,6 +809,13 @@ static void SetUpDexNavSearch(void)
     sDexNavSearchDataPtr->ownedIconSpriteId = MAX_SPRITES;
     sDexNavSearchDataPtr->exclamationSpriteId = MAX_SPRITES;
     sDexNavSearchDataPtr->searchLevel = searchLevel;
+
+    sDexNavSearchDataPtr->monLevel = ApplyWildLevelScaling(species, sDexNavSearchDataPtr->monLevel,
+        sDexNavSearchDataPtr->monLevel, gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum);
+    species = ResolveScaledWildSpeciesForContext(species, sDexNavSearchDataPtr->monLevel,
+        gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum, timeOfDay,
+        GetDynamicEncounterProfileForMap(gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum));
+    sDexNavSearchDataPtr->species = species;
 
     DexNavGenerateMoveset(species, searchLevel, sDexNavSearchDataPtr->monLevel, &sDexNavSearchDataPtr->moves[0]);
     sDexNavSearchDataPtr->heldItem = DexNavGenerateHeldItem(species, searchLevel);
@@ -1181,8 +1193,9 @@ static void DexNavUpdateSearchWindow(u8 proximity, u8 searchLevel)
 static void CreateDexNavWildMon(enum Species species, u8 potential, u8 level, u8 abilityNum, enum Item item, enum Move *moves)
 {
     struct Pokemon *mon = &gParties[B_TRAINER_OPPONENT_A][0];
+    gDexNavSpecies = species;
 
-    CreateWildMon(species, level);  // shiny rate bonus handled in CreateBoxMon
+    CreateWildMon(species, level);
     SetBoxMonPerfectIVs(&mon->box, min(3, potential)); // Will not exceed 3 Perfect IVs
 
     //Set ability

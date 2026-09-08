@@ -7,6 +7,7 @@
 #include "region_map.h"
 #include "script.h"
 #include "wild_encounter.h"
+#include "wild_scaling.h"
 
 static const struct MassOutbreak sPokeOutbreakSpeciesList[OUTBREAK_COUNT] = {
     [OUTBREAK_ID_ROUTE102] = {
@@ -125,10 +126,16 @@ bool32 IsMassOutbreakActive(void)
 
 bool8 SetUpMassOutbreakEncounter(u8 flags)
 {
-    if (flags & WILD_CHECK_REPEL && !IsWildLevelAllowedByRepel(gSaveBlock1Ptr->outbreakPokemonLevel))
+    u16 level = ApplyWildLevelScaling(gSaveBlock1Ptr->outbreakPokemonSpecies,
+        gSaveBlock1Ptr->outbreakPokemonLevel, gSaveBlock1Ptr->outbreakPokemonLevel,
+        gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum);
+    enum Species species = ResolveScaledWildSpecies(gSaveBlock1Ptr->outbreakPokemonSpecies, level,
+        gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum);
+
+    if (flags & WILD_CHECK_REPEL && !IsWildLevelAllowedByRepel(level))
         return FALSE;
 
-    CreateWildMon(gSaveBlock1Ptr->outbreakPokemonSpecies, gSaveBlock1Ptr->outbreakPokemonLevel);
+    CreateWildMon(species, level);
     for (u32 i = 0; i < MAX_MON_MOVES; i++)
         SetMonMoveSlot(&gParties[B_TRAINER_OPPONENT_A][0], gSaveBlock1Ptr->outbreakPokemonMoves[i], i);
 

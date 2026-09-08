@@ -1,4 +1,5 @@
 #include "global.h"
+#include "la_save.h"
 #include "agb_flash.h"
 #include "gba/flash_internal.h"
 #include "fieldmap.h"
@@ -493,6 +494,7 @@ static u8 CopySaveSlotData(u16 sectorId, struct SaveSectorLocation *locations)
     u16 checksum;
     u16 slotOffset = NUM_SECTORS_PER_SLOT * (gSaveCounter % NUM_SAVE_SLOTS);
     u16 id;
+    u16 copiedSectors = 0;
 
     for (i = 0; i < NUM_SECTORS_PER_SLOT; i++)
     {
@@ -511,8 +513,13 @@ static u8 CopySaveSlotData(u16 sectorId, struct SaveSectorLocation *locations)
             for (j = 0; j < locations[id].size; j++)
                 ((u8 *)locations[id].data)[j] = gReadWriteSector->data[j];
             CopyToSaveBlock3(id, gReadWriteSector);
+            copiedSectors |= 1 << id;
         }
     }
+
+    // Sector order rotates on flash; migrate only after the entire slot loads.
+    if (copiedSectors == (1 << NUM_SECTORS_PER_SLOT) - 1)
+        LaSaveBlock3OnLoad();
 
     return SAVE_STATUS_OK;
 }
@@ -1085,3 +1092,15 @@ static void CopyFromSaveBlock3(u32 sectorId, struct SaveSector *sector)
     u32 size = SaveBlock3Size(sectorId);
     memcpy(sector->saveBlock3Chunk, (u8 *)&gSaveblock3 + (sectorId * SAVE_BLOCK_3_CHUNK_SIZE), size);
 }
+
+#if TESTING
+void TestCopyToSaveBlock3(u32 sectorId, struct SaveSector *sector)
+{
+    CopyToSaveBlock3(sectorId, sector);
+}
+
+void TestCopyFromSaveBlock3(u32 sectorId, struct SaveSector *sector)
+{
+    CopyFromSaveBlock3(sectorId, sector);
+}
+#endif
