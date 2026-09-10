@@ -184,13 +184,16 @@ normal menu, debug configuration, Safari, link and Frontier menus in an emulator
 ### Storage and API details
 
 The pre-port save-size tests measured SaveBlock1=15568, SaveBlock2=3884 and
-SaveBlock3=4 bytes. SaveBlock3 is now 108/1624 bytes: its old four-byte prefix
-is intact and the 104-byte quest payload starts at offset 4. No sector layout,
-SaveBlock1/2 field, or existing expansion feature was removed. Capacities are
-fixed at 64 parent quests and 256 global child bits independently of the current
-two definitions. Keep IDs and v1 offsets stable. Enabling configuration options
-that add earlier SaveBlock3 fields requires a separate save migration audit.
-Older binaries do not preserve the new record reliably: back up before downgrade.
+SaveBlock3=4 bytes. SaveBlock3 is now 124/1624 bytes: the original four-byte
+prefix is intact, the 104-byte quest payload starts at offset 4, the 12-byte
+fake RTC clock follows at offset 108, and the four-byte "LAS1" layout tag ends
+the block at offset 120, leaving 1500 bytes of the 1624-byte capacity unused.
+No sector layout, SaveBlock1/2 field, or existing expansion feature was removed.
+Capacities are fixed at 64 parent quests and 256 global child bits
+independently of the current two definitions. Keep IDs and v1 offsets stable.
+Enabling configuration options that add earlier SaveBlock3 fields requires a
+separate save migration audit. Older binaries do not preserve the new record
+reliably: back up before downgrade.
 
 `QuestStart`, `QuestSetState`, `QuestComplete`, `QuestCompleteSubquest`,
 `QuestIsSubquestComplete`, `QuestAreAllSubquestsComplete`,
