@@ -4,10 +4,12 @@
 #include "la_trainer.h"
 #include "trainer_scaling.h"
 #include "trainer_evolution.h"
+#include "trainer_roster.h"
 #include "trainer_rank.h"
 #include "world_state.h"
 #include "main.h"
 #include "battle.h"
+#include "battle_controllers.h"
 #include "battle_frontier.h"
 #include "battle_pike.h"
 #include "battle_pyramid.h"
@@ -2238,6 +2240,9 @@ void SetMultiTrainerBattle(struct ScriptContext *ctx)
 // tests, player-party setup), which keeps their behavior byte-identical.
 #if TESTING
 static const struct LATrainerPolicy *sLATestPolicyOverride;
+static bool32 sLATestRosterOverride;
+static const struct LARosterProfile *sLATestRosterProfile;
+void (*gTestLARosterSourceObserver)(u32 sourceKey) = NULL;
 #endif
 
 static void CreateNPCTrainerPartyFromTrainerWithId(struct Pokemon *party, const struct Trainer *trainer, u16 trainerId, enum DifficultyLevel difficulty)
@@ -2255,9 +2260,9 @@ static void CreateNPCTrainerPartyFromTrainerWithId(struct Pokemon *party, const 
     }
 
     u32 monIndices[monsCount];
+    struct LARosterSelectedMon selected[max(monsCount, PARTY_SIZE)];
     struct TrainerGenerator *trainerGen = AllocZeroed(sizeof(struct TrainerGenerator));
     MakeTrainerGenerator(trainerGen, trainer);
-    DoTrainerPartyPool(trainer, monIndices, monsCount, gBattleTypeFlags);
 
     // LA v0.6.0 Phase 2: runtime level scaling. Computed once per trainer.
     struct LATrainerPolicy policy = GetLATrainerPolicy(trainerId);
@@ -2266,6 +2271,28 @@ static void CreateNPCTrainerPartyFromTrainerWithId(struct Pokemon *party, const 
         policy = *sLATestPolicyOverride;
 #endif
     bool32 eligible = LATrainerRuntimeEligibility(policy, trainerId, gBattleTypeFlags, gIsDebugBattle);
+    struct LARosterSelection roster = {0};
+    if (CanApplyLARoster(trainerId, policy, eligible, gBattleTypeFlags, IsAiVsAiBattle()))
+    {
+        const struct LARosterProfile *profile = GetLARosterProfile(trainerId, difficulty);
+#if TESTING
+        if (sLATestRosterOverride)
+            profile = sLATestRosterProfile;
+#endif
+        roster = SelectLARoster(trainer, profile, PARTY_SIZE);
+    }
+    if (roster.status == LA_ROSTER_SELECTION_COMPLETE)
+    {
+        monsCount = roster.count;
+        memcpy(selected, roster.members, monsCount * sizeof(selected[0]));
+    }
+    else
+    {
+        // Preserve the original count, pool selection and source identities.
+        DoTrainerPartyPool(trainer, monIndices, monsCount, gBattleTypeFlags);
+        for (i = 0; i < monsCount; i++)
+            selected[i] = (struct LARosterSelectedMon){&trainer->party[monIndices[i]], monIndices[i]};
+    }
     bool32 scaleLevel = eligible && LATrainerPolicyHas(policy, LA_TRAINER_POLICY_SCALE_LEVEL);
     bool32 scaleEvolution = eligible && LATrainerPolicyHas(policy, LA_TRAINER_POLICY_SCALE_EVOLUTION);
     u8 worldLevel = 0;
@@ -2280,8 +2307,8 @@ static void CreateNPCTrainerPartyFromTrainerWithId(struct Pokemon *party, const 
         // Anchor over exactly the selected subset that will be generated.
         for (i = 0; i < monsCount; i++)
         {
-            if (trainer->party[monIndices[i]].lvl > authoredAnchor)
-                authoredAnchor = trainer->party[monIndices[i]].lvl;
+            if (selected[i].source->lvl > authoredAnchor)
+                authoredAnchor = selected[i].source->lvl;
         }
 
         levelDelta = CalculateTrainerLevelDelta(authoredAnchor, worldLevel, GetLATrainerTotalLevelModifier(trainerId, policy));
@@ -2289,7 +2316,7 @@ static void CreateNPCTrainerPartyFromTrainerWithId(struct Pokemon *party, const 
 
     for (i = 0; i < monsCount; i++)
     {
-        const struct TrainerMon *srcMon = &trainer->party[monIndices[i]];
+        const struct TrainerMon *srcMon = selected[i].source;
         u8 finalLevel = srcMon->lvl;
         if (scaleLevel && levelDelta != 0)
             finalLevel = ApplyTrainerLevelDelta(srcMon->lvl, levelDelta);
@@ -2301,8 +2328,14 @@ static void CreateNPCTrainerPartyFromTrainerWithId(struct Pokemon *party, const 
             struct TrainerMon workingMon = *srcMon;
             workingMon.lvl = finalLevel;
             if (scaleEvolution)
+            {
+#if TESTING
+                if (gTestLARosterSourceObserver != NULL)
+                    gTestLARosterSourceObserver(selected[i].sourceKey);
+#endif
                 ApplyTrainerEvolution(&workingMon, GetTrainerEvolutionProfile(
-                    trainerId, difficulty, monIndices[i], srcMon->species));
+                    trainerId, difficulty, selected[i].sourceKey, srcMon->species));
+            }
             GenerateMonFromTrainerMon(&party[i], &workingMon, trainerGen);
         }
         else
@@ -2368,6 +2401,26 @@ void TestCreateLATrainerPartyWithPolicy(struct Pokemon *party, const struct Trai
 enum DifficultyLevel TestLATrainerConstructionDifficulty(u16 trainerId)
 {
     return GetLATrainerConstructionDifficulty(trainerId);
+}
+
+void TestCreateLATrainerRosterParty(struct Pokemon *party, const struct Trainer *trainer,
+    u16 trainerId, struct LATrainerPolicy policy, const struct LARosterProfile *profile)
+{
+    sLATestRosterOverride = TRUE;
+    sLATestRosterProfile = profile;
+    sLATestPolicyOverride = &policy;
+    TestCreateLATrainerParty(party, trainer, trainerId);
+    sLATestPolicyOverride = NULL;
+    sLATestRosterProfile = NULL;
+    sLATestRosterOverride = FALSE;
+}
+
+void TestCreateLATrainerPartyWithPolicyForId(struct Pokemon *party, const struct Trainer *trainer,
+    u16 trainerId, struct LATrainerPolicy policy)
+{
+    sLATestPolicyOverride = &policy;
+    TestCreateLATrainerParty(party, trainer, trainerId);
+    sLATestPolicyOverride = NULL;
 }
 #endif
 
