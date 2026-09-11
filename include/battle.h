@@ -1,6 +1,8 @@
 #ifndef GUARD_BATTLE_H
 #define GUARD_BATTLE_H
 
+#include "data.h" // MAX_TRAINER_ITEMS
+
 // should they be included here or included individually by every file?
 #include "constants/battle_end_turn.h"
 #include "constants/battle_switch_in.h"
@@ -284,8 +286,7 @@ struct BattleHistory
     enum Move usedMoves[MAX_BATTLERS_COUNT][MAX_MON_MOVES];
     enum Move moveHistory[MAX_BATTLERS_COUNT][AI_MOVE_HISTORY_COUNT]; // 3 last used moves for each battler
     u8 moveHistoryIndex[MAX_BATTLERS_COUNT];
-    enum Item trainerItems[MAX_BATTLERS_COUNT];
-    u8 itemsNo;
+    enum Item trainerItems[MAX_BATTLE_TRAINERS][MAX_TRAINER_ITEMS];
     enum Item heldItems[MAX_BATTLERS_COUNT];
 };
 

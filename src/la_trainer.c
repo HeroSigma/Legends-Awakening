@@ -226,3 +226,13 @@ bool32 LATrainerAIIsProtected(u64 aiFlags)
 {
     return (aiFlags & (AI_FLAG_DYNAMIC_FUNC | AI_FLAG_ROAMING | AI_FLAG_SAFARI | AI_FLAG_FIRST_BATTLE)) != 0;
 }
+
+u64 GetLATrainerAIFlags(u64 authoredFlags, struct LATrainerPolicy policy,
+    bool32 runtimeEligible, bool32 controllerAllowsAugmentation)
+{
+    if (!runtimeEligible || !controllerAllowsAugmentation
+     || !LATrainerPolicyHas(policy, LA_TRAINER_POLICY_SMART_AI)
+     || LATrainerAIIsProtected(authoredFlags))
+        return authoredFlags;
+    return authoredFlags | LA_SMART_AI_MASK;
+}

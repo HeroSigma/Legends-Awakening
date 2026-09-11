@@ -18,6 +18,9 @@ enum LATrainerCategory
 
 #define LA_TRAINER_POLICY_NONE            0
 
+// Preserve authored gimmick flags, but never grant Smart Tera or prediction.
+#define LA_SMART_AI_MASK (AI_FLAG_SMART_TRAINER & ~AI_FLAG_SMART_TERA)
+
 #define LA_TRAINER_POLICY_SCALE_LEVEL          (1 << 0)
 #define LA_TRAINER_POLICY_SCALE_EVOLUTION      (1 << 1)
 #define LA_TRAINER_POLICY_SMART_AI             (1 << 2)
@@ -106,5 +109,8 @@ bool32 LATrainerRuntimeEligibility(struct LATrainerPolicy policy,
  * roaming, safari, first battle).
  */
 bool32 LATrainerAIIsProtected(u64 aiFlags);
+
+u64 GetLATrainerAIFlags(u64 authoredFlags, struct LATrainerPolicy policy,
+    bool32 runtimeEligible, bool32 controllerAllowsAugmentation);
 
 #endif // GUARD_LA_TRAINER_H

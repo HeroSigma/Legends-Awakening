@@ -15,6 +15,10 @@
 #include "battle_z_move.h"
 #include "battle_terastal.h"
 #include "data.h"
+#include "la_trainer.h"
+#include "trainer_items.h"
+#include "trainer_rank.h"
+#include "world_state.h"
 #include "debug.h"
 #include "event_data.h"
 #include "item.h"
@@ -196,13 +200,34 @@ void BattleAI_SetupAIData(u8 defaultScoreMoves, enum BattlerId battler)
     gAiBattleData->chosenTarget[battler] = SetRandomTarget(battler);
 }
 
+#if TESTING
+// Local fixtures can supply consumables without changing the generated roster.
+const struct Trainer *(*gTestLATrainerItemSource)(const struct Trainer *) = NULL;
+#endif
+
+static void SetupTrainerOwnerItems(enum BattleTrainer owner, u16 trainerId)
+{
+    // Preserve the special-ID fallback without granting the fallback's policy.
+    // Validate before GetTrainerStructFromId's difficulty lookup can index ROM.
+    u16 lookupId = trainerId;
+    if (IsSpecialTrainer(trainerId)
+     || (!IsPartnerTrainerId(trainerId) && trainerId >= TRAINERS_COUNT))
+        lookupId = TRAINER_NONE;
+    const struct Trainer *trainer = GetTrainerStructFromId(lookupId);
+#if TESTING
+    if (gTestLATrainerItemSource != NULL)
+        trainer = gTestLATrainerItemSource(trainer);
+#endif
+    struct LATrainerPolicy policy = GetLATrainerPolicy(trainerId);
+    bool32 eligible = LATrainerRuntimeEligibility(policy, trainerId, gBattleTypeFlags, gIsDebugBattle);
+    struct LATrainerItemSet items = BuildLATrainerBattleItems(policy, eligible,
+        GetTrainerRank(), GetWorldPhase(), trainer->items);
+    memcpy(gBattleHistory->trainerItems[owner], items.items, sizeof(items.items));
+}
+
 void BattleAI_SetupItems(void)
 {
     u8 *data = (u8 *)gBattleHistory;
-    u32 trainerId = TRAINER_BATTLE_PARAM.opponentA;
-    if (IsSpecialTrainer(trainerId))
-        trainerId = TRAINER_NONE;
-    const enum Item *items = GetTrainerItemsFromId(trainerId);
 
     for (u32 i = 0; i < sizeof(struct BattleHistory); i++)
         data[i] = 0;
@@ -215,14 +240,9 @@ void BattleAI_SetupItems(void)
             )
        )
     {
-        for (u32 itemIndex = 0; itemIndex < MAX_TRAINER_ITEMS; itemIndex++)
-        {
-            if (items[itemIndex] != ITEM_NONE)
-            {
-                gBattleHistory->trainerItems[gBattleHistory->itemsNo] = items[itemIndex];
-                gBattleHistory->itemsNo++;
-            }
-        }
+        SetupTrainerOwnerItems(B_TRAINER_OPPONENT_A, TRAINER_BATTLE_PARAM.opponentA);
+        if (BattleSideHasTwoTrainers(B_SIDE_OPPONENT))
+            SetupTrainerOwnerItems(B_TRAINER_OPPONENT_B, TRAINER_BATTLE_PARAM.opponentB);
     }
 }
 
@@ -283,7 +303,14 @@ static u64 GetAiFlags(u16 trainerId, enum BattlerId battler)
         else if (gBattleTypeFlags & (BATTLE_TYPE_FRONTIER | BATTLE_TYPE_EREADER_TRAINER | BATTLE_TYPE_TRAINER_HILL | BATTLE_TYPE_SECRET_BASE))
             flags = AI_FLAG_CHECK_BAD_MOVE | AI_FLAG_CHECK_VIABILITY | AI_FLAG_TRY_TO_FAINT;
         else
+        {
             flags = GetTrainerAIFlagsFromId(trainerId);
+            struct LATrainerPolicy policy = GetLATrainerPolicy(trainerId);
+            bool32 eligible = LATrainerRuntimeEligibility(policy, trainerId, gBattleTypeFlags, gIsDebugBattle);
+            bool32 controllerAllows = !(gBattleTypeFlags & (BATTLE_TYPE_LINK | BATTLE_TYPE_BATTLE_TOWER))
+                && !IsAiVsAiBattle() && sDynamicAiFunc == NULL && gDynamicAiSwitchFunc == NULL;
+            flags = GetLATrainerAIFlags(flags, policy, eligible, controllerAllows);
+        }
     }
 
     if (IsDoubleBattle() && flags != 0)
@@ -304,6 +331,13 @@ static u64 GetAiFlags(u16 trainerId, enum BattlerId battler)
 
     return flags;
 }
+
+#if TESTING
+u64 TestGetLATrainerAIFlags(u16 trainerId, enum BattlerId battler)
+{
+    return GetAiFlags(trainerId, battler);
+}
+#endif
 
 void BattleAI_SetupFlags(void)
 {

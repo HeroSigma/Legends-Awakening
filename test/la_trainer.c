@@ -5,6 +5,14 @@
 
 #include "test/test.h"
 #include "la_trainer.h"
+#include "battle.h"
+#include "battle_setup.h"
+#include "battle_ai_main.h"
+#include "battle_ai_switch.h"
+#include "debug.h"
+
+extern u64 TestGetLATrainerAIFlags(u16 trainerId, enum BattlerId battler);
+extern AiScoreFunc sDynamicAiFunc;
 
 // The TESTING build uses a tiny trainer table from test/battle/trainer_control.h
 // (see test/test_runner_battle.c:57-60). Relevant populated rows:
@@ -12,7 +20,7 @@
 //   [1]      TRAINER_CLASS_RIVAL           (MAJOR via class)
 //   [2]      TRAINER_CLASS_RIVAL
 //   [3]      TRAINER_CLASS_PKMN_TRAINER_1
-//   [5]      TRAINER_CLASS_LEADER          (MAJOR via class)
+//   [5]      TRAINER_CLASS_PKMN_TRAINER_1   (difficulty variants)
 // Valid-but-unclassified ordinary ids in the test table: 0, 3, 6..14.
 
 TEST("LA Trainer: valid ordinary trainer resolves to ORDINARY competitive preset")
@@ -236,4 +244,145 @@ TEST("LA Trainer: protected AI helper recognizes all four special flags")
     EXPECT(LATrainerAIIsProtected(AI_FLAG_DYNAMIC_FUNC | AI_FLAG_ROAMING));
     EXPECT(!LATrainerAIIsProtected(AI_FLAG_SMART_TRAINER));
     EXPECT(!LATrainerAIIsProtected(0));
+}
+
+static u64 SmartFlags(u64 authored)
+{
+    return GetLATrainerAIFlags(authored, GetLATrainerPolicy(0), TRUE, TRUE);
+}
+
+TEST("LA Trainer: Smart AI ordinary and Major receive approved mask")
+{
+    EXPECT_EQ(SmartFlags(0), LA_SMART_AI_MASK);
+    EXPECT_EQ(GetLATrainerAIFlags(0, GetLATrainerPolicy(1), TRUE, TRUE), LA_SMART_AI_MASK);
+}
+
+TEST("LA Trainer: Smart AI requires policy runtime and controller permission")
+{
+    struct LATrainerPolicy p = GetLATrainerPolicy(0);
+    p.flags &= ~LA_TRAINER_POLICY_SMART_AI;
+    EXPECT_EQ(GetLATrainerAIFlags(AI_FLAG_HP_AWARE, p, TRUE, TRUE), AI_FLAG_HP_AWARE);
+    EXPECT_EQ(GetLATrainerAIFlags(AI_FLAG_HP_AWARE, GetLATrainerPolicy(0), FALSE, TRUE), AI_FLAG_HP_AWARE);
+    EXPECT_EQ(GetLATrainerAIFlags(AI_FLAG_HP_AWARE, GetLATrainerPolicy(0), TRUE, FALSE), AI_FLAG_HP_AWARE);
+}
+
+TEST("LA Trainer: Smart AI SPECIAL and EXEMPT unchanged")
+{
+    EXPECT_EQ(GetLATrainerAIFlags(AI_FLAG_HP_AWARE, GetLATrainerPolicy(TRAINER_PARTNER(1)), FALSE, TRUE), AI_FLAG_HP_AWARE);
+    EXPECT_EQ(GetLATrainerAIFlags(AI_FLAG_HP_AWARE, GetLATrainerPolicy(0xFFFF), FALSE, TRUE), AI_FLAG_HP_AWARE);
+}
+
+TEST("LA Trainer: Smart AI preserves every authored bit")
+{
+    for (u32 bit = 0; bit < 64; bit++)
+    {
+        u64 authored = 1ULL << bit;
+        EXPECT_EQ(SmartFlags(authored) & authored, authored);
+    }
+}
+
+TEST("LA Trainer: Smart AI retains authored Tera without granting Tera prediction or partner attacks")
+{
+    EXPECT(SmartFlags(AI_FLAG_SMART_TERA) & AI_FLAG_SMART_TERA);
+    EXPECT_EQ(SmartFlags(0) & (AI_FLAG_SMART_TERA | AI_FLAG_PREDICTION | AI_FLAG_ATTACKS_PARTNER), 0);
+    EXPECT_EQ(SmartFlags(0) & AI_FLAG_OMNISCIENT, AI_FLAG_OMNISCIENT);
+}
+
+TEST("LA Trainer: Smart AI protected strategies unchanged")
+{
+    const u64 protected[] = {AI_FLAG_DYNAMIC_FUNC, AI_FLAG_ROAMING, AI_FLAG_SAFARI, AI_FLAG_FIRST_BATTLE};
+    for (u32 i = 0; i < ARRAY_COUNT(protected); i++)
+        EXPECT_EQ(SmartFlags(protected[i] | AI_FLAG_HP_AWARE), protected[i] | AI_FLAG_HP_AWARE);
+}
+
+TEST("LA Trainer: Smart AI deterministic idempotent and does not mutate trainer data")
+{
+    struct Trainer before = gTrainers[DIFFICULTY_NORMAL][0];
+    u64 flags = SmartFlags(before.aiFlags);
+    EXPECT_EQ(SmartFlags(before.aiFlags), flags);
+    EXPECT_EQ(SmartFlags(flags), flags);
+    EXPECT_EQ(memcmp(&before, &gTrainers[DIFFICULTY_NORMAL][0], sizeof(before)), 0);
+}
+
+static void SetupSmartAIContext(u32 battleFlags)
+{
+    gIsDebugBattle = FALSE;
+    gBattleTypeFlags = battleFlags;
+    TRAINER_BATTLE_PARAM.opponentA = 0;
+    SetCurrentDifficultyLevel(DIFFICULTY_NORMAL);
+    ResetDynamicAiFunctions();
+}
+
+static bool32 CustomSwitch(struct SwitchAiContext *ctx)
+{
+    return FALSE;
+}
+
+static s32 CustomScore(u32 battlerAtk, u32 battlerDef, u32 move, s32 score)
+{
+    return score;
+}
+
+TEST("LA Trainer: Smart AI actual zero-authored doubles normalization")
+{
+    SetupSmartAIContext(BATTLE_TYPE_TRAINER | BATTLE_TYPE_DOUBLE);
+    ASSUME(gTrainers[DIFFICULTY_NORMAL][0].aiFlags == 0);
+    u64 flags = TestGetLATrainerAIFlags(0, B_BATTLER_1);
+    EXPECT_EQ(flags & LA_SMART_AI_MASK, LA_SMART_AI_MASK);
+    EXPECT(flags & AI_FLAG_DOUBLE_BATTLE);
+    EXPECT_EQ(flags & (AI_FLAG_SMART_TERA | AI_FLAG_PREDICTION | AI_FLAG_ATTACKS_PARTNER), 0);
+}
+
+TEST("LA Trainer: Smart AI active switching callback bypasses augmentation")
+{
+    SetupSmartAIContext(BATTLE_TYPE_TRAINER);
+    gDynamicAiSwitchFunc = CustomSwitch;
+    EXPECT_EQ(TestGetLATrainerAIFlags(0, B_BATTLER_1), 0);
+    ResetDynamicAiFunctions();
+    EXPECT_EQ(TestGetLATrainerAIFlags(0, B_BATTLER_1) & LA_SMART_AI_MASK, LA_SMART_AI_MASK);
+}
+
+TEST("LA Trainer: Smart AI active scoring callback keeps dynamic controller")
+{
+    SetupSmartAIContext(BATTLE_TYPE_TRAINER);
+    sDynamicAiFunc = CustomScore;
+    EXPECT_EQ(TestGetLATrainerAIFlags(0, B_BATTLER_1), AI_FLAG_DYNAMIC_FUNC);
+    ResetDynamicAiFunctions();
+}
+
+TEST("LA Trainer: Smart AI actual special controller exclusions")
+{
+    const u32 excluded[] = {BATTLE_TYPE_LINK, BATTLE_TYPE_SAFARI, BATTLE_TYPE_ROAMER,
+        BATTLE_TYPE_FIRST_BATTLE, BATTLE_TYPE_FRONTIER, BATTLE_TYPE_EREADER_TRAINER,
+        BATTLE_TYPE_TRAINER_HILL, BATTLE_TYPE_SECRET_BASE, BATTLE_TYPE_BATTLE_TOWER};
+    for (u32 i = 0; i < ARRAY_COUNT(excluded); i++)
+    {
+        SetupSmartAIContext(BATTLE_TYPE_TRAINER | excluded[i]);
+        EXPECT_EQ(TestGetLATrainerAIFlags(0, B_BATTLER_1) & AI_FLAG_OMNISCIENT, 0);
+    }
+    SetupSmartAIContext(BATTLE_TYPE_TRAINER);
+    gIsDebugBattle = TRUE;
+    u64 debugFlags = GetTrainerAIFlagsFromId(0);
+    if (debugFlags & AI_FLAG_SMART_SWITCHING)
+        debugFlags |= AI_FLAG_SMART_MON_CHOICES;
+    if (debugFlags & AI_FLAG_PREDICT_INCOMING_MON)
+        debugFlags |= AI_FLAG_PREDICT_SWITCH;
+    EXPECT(TestGetLATrainerAIFlags(0, B_BATTLER_1) == debugFlags);
+    gIsDebugBattle = FALSE;
+}
+
+TEST("LA Trainer: Smart AI player partner keeps authored flags")
+{
+    SetupSmartAIContext(BATTLE_TYPE_TRAINER | BATTLE_TYPE_INGAME_PARTNER);
+    u16 id = TRAINER_PARTNER(1);
+    u64 authored = GetTrainerAIFlagsFromId(id);
+    u64 flags = TestGetLATrainerAIFlags(id, B_BATTLER_2);
+    if (IsDoubleBattle() && authored != 0)
+        authored |= AI_FLAG_DOUBLE_BATTLE;
+    // The upstream smart-switch normalization still applies to authored flags.
+    if (authored & AI_FLAG_SMART_SWITCHING)
+        authored |= AI_FLAG_SMART_MON_CHOICES;
+    if (authored & AI_FLAG_PREDICT_INCOMING_MON)
+        authored |= AI_FLAG_PREDICT_SWITCH;
+    EXPECT_EQ(flags, authored);
 }

@@ -30,6 +30,12 @@ bool32 ShouldUseItem(enum BattlerId battler)
     bool32 shouldUse = FALSE;
     u32 healAmount = 0;
 
+    if (battler >= MAX_BATTLERS_COUNT)
+        return FALSE;
+    enum BattleTrainer owner = GetBattlerTrainer(battler);
+    if (owner != B_TRAINER_OPPONENT_A && owner != B_TRAINER_OPPONENT_B)
+        return FALSE;
+
     if (IsAiVsAiBattle())
         return FALSE;
 
@@ -50,7 +56,7 @@ bool32 ShouldUseItem(enum BattlerId battler)
         const u8 *itemEffects;
         u32 battlerSide;
 
-        item = gBattleHistory->trainerItems[itemIndex];
+        item = gBattleHistory->trainerItems[owner][itemIndex];
         if (item == ITEM_NONE)
             continue;
         itemEffects = GetItemEffect(item);
@@ -177,7 +183,7 @@ bool32 ShouldUseItem(enum BattlerId battler)
                 gBattleStruct->itemPartyIndex[battler] = gBattlerPartyIndexes[battler];
             BtlController_EmitTwoReturnValues(battler, B_COMM_TO_ENGINE, B_ACTION_USE_ITEM, 0);
             gBattleStruct->chosenItem[battler] = item;
-            gBattleHistory->trainerItems[itemIndex] = 0;
+            gBattleHistory->trainerItems[owner][itemIndex] = ITEM_NONE;
             return shouldUse;
         }
     }
