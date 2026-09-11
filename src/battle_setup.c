@@ -1,5 +1,10 @@
 #include "global.h"
 #include "data.h"
+#include "debug.h"
+#include "la_trainer.h"
+#include "trainer_scaling.h"
+#include "trainer_rank.h"
+#include "world_state.h"
 #include "main.h"
 #include "battle.h"
 #include "battle_frontier.h"
@@ -2226,7 +2231,11 @@ void SetMultiTrainerBattle(struct ScriptContext *ctx)
     gPartnerTrainerId = TRAINER_PARTNER(ScriptReadHalfword(ctx));
 };
 
-void CreateNPCTrainerPartyFromTrainer(struct Pokemon *party, const struct Trainer *trainer)
+// Internal: creates an NPC trainer party with an explicit trainer ID for LA
+// trainer level scaling. trainerId == 0xFFFF (invalid -> EXEMPT policy) is
+// passed by the public wrapper for callers that lack a real ID (debug menus,
+// tests, player-party setup), which keeps their behavior byte-identical.
+static void CreateNPCTrainerPartyFromTrainerWithId(struct Pokemon *party, const struct Trainer *trainer, u16 trainerId)
 {
     s32 i;
     u8 monsCount;
@@ -2245,19 +2254,61 @@ void CreateNPCTrainerPartyFromTrainer(struct Pokemon *party, const struct Traine
     MakeTrainerGenerator(trainerGen, trainer);
     DoTrainerPartyPool(trainer, monIndices, monsCount, gBattleTypeFlags);
 
+    // LA v0.6.0 Phase 2: runtime level scaling. Computed once per trainer.
+    struct LATrainerPolicy policy = GetLATrainerPolicy(trainerId);
+    bool32 eligible = LATrainerRuntimeEligibility(policy, trainerId, gBattleTypeFlags, gIsDebugBattle);
+    u8 worldLevel = 0;
+    u8 authoredAnchor = 0;
+    u8 levelDelta = 0;
+
+    if (eligible)
+    {
+        struct LAPartyStrength strength = CalculateTrainerPartyStrength();
+        worldLevel = CalculateTrainerScalingWorldLevel(GetTrainerRank(), GetWorldPhase(), strength.avgLevel, strength.usableCount);
+
+        // Anchor over exactly the selected subset that will be generated.
+        for (i = 0; i < monsCount; i++)
+        {
+            if (trainer->party[monIndices[i]].lvl > authoredAnchor)
+                authoredAnchor = trainer->party[monIndices[i]].lvl;
+        }
+
+        levelDelta = CalculateTrainerLevelDelta(authoredAnchor, worldLevel, GetLATrainerTotalLevelModifier(trainerId, policy));
+    }
+
     for (i = 0; i < monsCount; i++)
     {
-        u32 monIndex = monIndices[i];
-        GenerateMonFromTrainerMon(&party[i], &trainer->party[monIndex], trainerGen);
+        const struct TrainerMon *srcMon = &trainer->party[monIndices[i]];
+
+        if (eligible && levelDelta != 0)
+        {
+            // Stack-local copy: ONLY .lvl may change. All other TrainerMon
+            // data (species/moves/IVs/EVs/Nature/Ability/held item/friendship/
+            // ball/Tera/Dynamax/G-Max/tags) is preserved byte-for-byte.
+            struct TrainerMon workingMon = *srcMon;
+            workingMon.lvl = ApplyTrainerLevelDelta(srcMon->lvl, levelDelta);
+            GenerateMonFromTrainerMon(&party[i], &workingMon, trainerGen);
+        }
+        else
+        {
+            GenerateMonFromTrainerMon(&party[i], srcMon, trainerGen);
+        }
     }
     Free(trainerGen);
+}
+
+void CreateNPCTrainerPartyFromTrainer(struct Pokemon *party, const struct Trainer *trainer)
+{
+    // Public wrapper retains callers' behavior (no ID available): 0xFFFF is an
+    // invalid ID -> GetLATrainerPolicy returns EXEMPT -> eligibility FALSE.
+    CreateNPCTrainerPartyFromTrainerWithId(party, trainer, 0xFFFF);
 }
 
 static void CreateNPCTrainerParty(struct Pokemon *party, u16 trainerNum)
 {
     if (!GetTrainerStructFromId(trainerNum)->overrideTrainer)
     {
-        CreateNPCTrainerPartyFromTrainer(party, GetTrainerStructFromId(trainerNum));
+        CreateNPCTrainerPartyFromTrainerWithId(party, GetTrainerStructFromId(trainerNum), trainerNum);
         return;
     }
 
@@ -2270,7 +2321,7 @@ static void CreateNPCTrainerParty(struct Pokemon *party, u16 trainerNum)
     tempTrainer.poolSize = origTrainer->poolSize;
     if (tempTrainer.partySize == 0)
         tempTrainer.partySize = origTrainer->partySize;
-    CreateNPCTrainerPartyFromTrainer(party, (const struct Trainer *)(&tempTrainer));
+    CreateNPCTrainerPartyFromTrainerWithId(party, (const struct Trainer *)(&tempTrainer), trainerNum);
 }
 
 void CreateTrainerPartyForPlayer(void)
