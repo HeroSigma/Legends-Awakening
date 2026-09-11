@@ -3,6 +3,7 @@
 #include "debug.h"
 #include "la_trainer.h"
 #include "trainer_scaling.h"
+#include "trainer_evolution.h"
 #include "trainer_rank.h"
 #include "world_state.h"
 #include "main.h"
@@ -2235,7 +2236,11 @@ void SetMultiTrainerBattle(struct ScriptContext *ctx)
 // trainer level scaling. trainerId == 0xFFFF (invalid -> EXEMPT policy) is
 // passed by the public wrapper for callers that lack a real ID (debug menus,
 // tests, player-party setup), which keeps their behavior byte-identical.
-static void CreateNPCTrainerPartyFromTrainerWithId(struct Pokemon *party, const struct Trainer *trainer, u16 trainerId)
+#if TESTING
+static const struct LATrainerPolicy *sLATestPolicyOverride;
+#endif
+
+static void CreateNPCTrainerPartyFromTrainerWithId(struct Pokemon *party, const struct Trainer *trainer, u16 trainerId, enum DifficultyLevel difficulty)
 {
     s32 i;
     u8 monsCount;
@@ -2256,12 +2261,18 @@ static void CreateNPCTrainerPartyFromTrainerWithId(struct Pokemon *party, const 
 
     // LA v0.6.0 Phase 2: runtime level scaling. Computed once per trainer.
     struct LATrainerPolicy policy = GetLATrainerPolicy(trainerId);
+#if TESTING
+    if (sLATestPolicyOverride != NULL)
+        policy = *sLATestPolicyOverride;
+#endif
     bool32 eligible = LATrainerRuntimeEligibility(policy, trainerId, gBattleTypeFlags, gIsDebugBattle);
+    bool32 scaleLevel = eligible && LATrainerPolicyHas(policy, LA_TRAINER_POLICY_SCALE_LEVEL);
+    bool32 scaleEvolution = eligible && LATrainerPolicyHas(policy, LA_TRAINER_POLICY_SCALE_EVOLUTION);
     u8 worldLevel = 0;
     u8 authoredAnchor = 0;
     u8 levelDelta = 0;
 
-    if (eligible)
+    if (scaleLevel)
     {
         struct LAPartyStrength strength = CalculateTrainerPartyStrength();
         worldLevel = CalculateTrainerScalingWorldLevel(GetTrainerRank(), GetWorldPhase(), strength.avgLevel, strength.usableCount);
@@ -2279,14 +2290,19 @@ static void CreateNPCTrainerPartyFromTrainerWithId(struct Pokemon *party, const 
     for (i = 0; i < monsCount; i++)
     {
         const struct TrainerMon *srcMon = &trainer->party[monIndices[i]];
+        u8 finalLevel = srcMon->lvl;
+        if (scaleLevel && levelDelta != 0)
+            finalLevel = ApplyTrainerLevelDelta(srcMon->lvl, levelDelta);
 
-        if (eligible && levelDelta != 0)
+        if (finalLevel != srcMon->lvl || scaleEvolution)
         {
-            // Stack-local copy: ONLY .lvl may change. All other TrainerMon
-            // data (species/moves/IVs/EVs/Nature/Ability/held item/friendship/
-            // ball/Tera/Dynamax/G-Max/tags) is preserved byte-for-byte.
+            // Only selected private copies can change. Evolution uses the final
+            // slot level even when no level delta was necessary or permitted.
             struct TrainerMon workingMon = *srcMon;
-            workingMon.lvl = ApplyTrainerLevelDelta(srcMon->lvl, levelDelta);
+            workingMon.lvl = finalLevel;
+            if (scaleEvolution)
+                ApplyTrainerEvolution(&workingMon, GetTrainerEvolutionProfile(
+                    trainerId, difficulty, monIndices[i], srcMon->species));
             GenerateMonFromTrainerMon(&party[i], &workingMon, trainerGen);
         }
         else
@@ -2301,14 +2317,23 @@ void CreateNPCTrainerPartyFromTrainer(struct Pokemon *party, const struct Traine
 {
     // Public wrapper retains callers' behavior (no ID available): 0xFFFF is an
     // invalid ID -> GetLATrainerPolicy returns EXEMPT -> eligibility FALSE.
-    CreateNPCTrainerPartyFromTrainerWithId(party, trainer, 0xFFFF);
+    CreateNPCTrainerPartyFromTrainerWithId(party, trainer, 0xFFFF, DIFFICULTY_NORMAL);
+}
+
+static enum DifficultyLevel GetLATrainerConstructionDifficulty(u16 trainerId)
+{
+    if (gIsDebugBattle || IsPartnerTrainerId(trainerId)
+     || IsSpecialTrainer(trainerId) || trainerId >= TRAINERS_COUNT)
+        return DIFFICULTY_NORMAL;
+    return GetTrainerDifficultyLevel(trainerId);
 }
 
 static void CreateNPCTrainerParty(struct Pokemon *party, u16 trainerNum)
 {
+    enum DifficultyLevel difficulty = GetLATrainerConstructionDifficulty(trainerNum);
     if (!GetTrainerStructFromId(trainerNum)->overrideTrainer)
     {
-        CreateNPCTrainerPartyFromTrainerWithId(party, GetTrainerStructFromId(trainerNum), trainerNum);
+        CreateNPCTrainerPartyFromTrainerWithId(party, GetTrainerStructFromId(trainerNum), trainerNum, difficulty);
         return;
     }
 
@@ -2321,8 +2346,30 @@ static void CreateNPCTrainerParty(struct Pokemon *party, u16 trainerNum)
     tempTrainer.poolSize = origTrainer->poolSize;
     if (tempTrainer.partySize == 0)
         tempTrainer.partySize = origTrainer->partySize;
-    CreateNPCTrainerPartyFromTrainerWithId(party, (const struct Trainer *)(&tempTrainer), trainerNum);
+    CreateNPCTrainerPartyFromTrainerWithId(party, (const struct Trainer *)(&tempTrainer), trainerNum, difficulty);
 }
+
+#if TESTING
+// Test-local trainer data exercises the real pool/anchor/copy/generation path.
+void TestCreateLATrainerParty(struct Pokemon *party, const struct Trainer *trainer, u16 trainerId)
+{
+    CreateNPCTrainerPartyFromTrainerWithId(party, trainer, trainerId,
+        GetLATrainerConstructionDifficulty(trainerId));
+}
+
+void TestCreateLATrainerPartyWithPolicy(struct Pokemon *party, const struct Trainer *trainer,
+    struct LATrainerPolicy policy)
+{
+    sLATestPolicyOverride = &policy;
+    TestCreateLATrainerParty(party, trainer, 0);
+    sLATestPolicyOverride = NULL;
+}
+
+enum DifficultyLevel TestLATrainerConstructionDifficulty(u16 trainerId)
+{
+    return GetLATrainerConstructionDifficulty(trainerId);
+}
+#endif
 
 void CreateTrainerPartyForPlayer(void)
 {
