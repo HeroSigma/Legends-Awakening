@@ -626,7 +626,33 @@ TEST("Trainer Roster: Southwest five profiles retain exact sources and 18 stable
     EXPECT_EQ(candidates, 18);
 }
 
-TEST("Trainer Roster: only Sawyer and five Southwest final encounters have profiles")
+// Batch 2 frozen roster expectations, independent of production profile storage.
+static const struct SouthwestRosterCase sBatch2Rosters[] =
+{
+    {TRAINER_ELLIOT_3, 7, 4, 29,
+     {MON(SPECIES_GYARADOS, 29), MON(SPECIES_CARVANHA, 26), MON(SPECIES_TENTACOOL, 26), MON(SPECIES_GYARADOS, 29)},
+     {SPECIES_TENTACRUEL, SPECIES_SHARPEDO}, 29},
+    {TRAINER_ELLIOT_4, 7, 4, 31,
+     {MON(SPECIES_GYARADOS, 31), MON(SPECIES_CARVANHA, 30), MON(SPECIES_TENTACRUEL, 30), MON(SPECIES_GYARADOS, 31)},
+     {SPECIES_TENTACRUEL, SPECIES_SHARPEDO}, 31},
+    {TRAINER_ELLIOT_5, 7, 4, 35,
+     {MON(SPECIES_GYARADOS, 33), MON(SPECIES_SHARPEDO, 33), MON(SPECIES_GYARADOS, 33), MON(SPECIES_TENTACRUEL, 35)},
+     {SPECIES_TENTACRUEL, SPECIES_SHARPEDO}, 33},
+    {TRAINER_KAREN_4, 8, 2, 32,
+     {MON(SPECIES_BRELOOM, 32), MON(SPECIES_LOUDRED, 32)},
+     {SPECIES_BEAUTIFLY, SPECIES_SURSKIT, SPECIES_ROSELIA, SPECIES_NINJASK}, 32},
+    {TRAINER_KAREN_5, 8, 2, 35,
+     {MON(SPECIES_BRELOOM, 35), MON(SPECIES_EXPLOUD, 35)},
+     {SPECIES_BEAUTIFLY, SPECIES_SURSKIT, SPECIES_ROSELIA, SPECIES_NINJASK}, 35},
+    {TRAINER_JERRY_4, 9, 2, 32,
+     {MON(SPECIES_KIRLIA, 32), MON(SPECIES_MEDICHAM, 32)},
+     {SPECIES_GRUMPIG, SPECIES_CHIMECHO, SPECIES_SABLEYE, SPECIES_BANETTE}, 32},
+    {TRAINER_JERRY_5, 9, 3, 34,
+     {MON(SPECIES_KIRLIA, 34), MON(SPECIES_BANETTE, 34), MON(SPECIES_MEDICHAM, 34)},
+     {SPECIES_GRUMPIG, SPECIES_CHIMECHO, SPECIES_SABLEYE}, 34},
+};
+
+TEST("Trainer Roster: exactly seventeen Sawyer Southwest and Batch 2 profiles")
 {
     u32 normalCount = 0;
     for (u32 id = 0; id < TRAINERS_COUNT; id++)
@@ -638,10 +664,105 @@ TEST("Trainer Roster: only Sawyer and five Southwest final encounters have profi
         for (u32 i = 0; i < ARRAY_COUNT(sSouthwestRosters); i++)
             if (id == sSouthwestRosters[i].trainerId)
                 expected = TRUE;
+        for (u32 i = 0; i < ARRAY_COUNT(sBatch2Rosters); i++)
+            if (id == sBatch2Rosters[i].trainerId)
+                expected = TRUE;
         EXPECT_EQ(GetLARosterProfile(id, DIFFICULTY_NORMAL) != NULL, expected);
         normalCount += GetLARosterProfile(id, DIFFICULTY_NORMAL) != NULL;
         EXPECT(GetLARosterProfile(id, DIFFICULTY_EASY) == NULL);
         EXPECT(GetLARosterProfile(id, DIFFICULTY_HARD) == NULL);
     }
-    EXPECT_EQ(normalCount, 10);
+    EXPECT_EQ(normalCount, 17);
+}
+
+TEST("Trainer Roster: Batch 2 seven profiles exact sources anchors and stable candidates")
+{
+    u32 candidates = 0;
+    rng_value_t r1 = gRngValue, r2 = gRng2Value;
+    for (u32 i = 0; i < ARRAY_COUNT(sBatch2Rosters); i++)
+    {
+        const struct SouthwestRosterCase *c = &sBatch2Rosters[i];
+        const struct LARosterProfile *p = GetLARosterProfile(c->trainerId, DIFFICULTY_NORMAL);
+        ASSUME(p != NULL);
+        EXPECT_EQ(p->namespaceId, c->namespaceId);
+        EXPECT_EQ(p->retainedCount, c->retainedCount);
+        EXPECT_EQ(p->supplementCount, 6 - c->retainedCount);
+        const struct Trainer trainer = {.party = c->authored, .partySize = c->retainedCount};
+        struct TrainerMon before[4];
+        memcpy(before, c->authored, sizeof(before));
+        struct LARosterSelection selected = SelectLARoster(&trainer, p, 6);
+        EXPECT_EQ(selected.status, LA_ROSTER_SELECTION_COMPLETE);
+        EXPECT_EQ(selected.count, 6);
+        u32 anchor = 0;
+        for (u32 j = 0; j < selected.count; j++)
+        {
+            if (selected.members[j].source->lvl > anchor)
+                anchor = selected.members[j].source->lvl;
+            if (j < c->retainedCount)
+            {
+                EXPECT_EQ(p->retained[j].sourceIndex, j);
+                EXPECT_EQ(p->retained[j].expectedSpecies, c->authored[j].species);
+                EXPECT(selected.members[j].source == &c->authored[j]);
+                EXPECT_EQ(selected.members[j].sourceKey, j);
+            }
+            else
+            {
+                u32 k = j - c->retainedCount;
+                const struct LARosterSupplement *s = &p->supplements[k];
+                EXPECT_EQ(s->candidateId, k + 1);
+                EXPECT_EQ(s->mon.species, c->supplements[k]);
+                EXPECT_EQ(s->mon.lvl, c->supplementLevel);
+                EXPECT_EQ(selected.members[j].sourceKey, 0x80000000u | ((u32)c->namespaceId << 16) | (k + 1));
+                struct TrainerMon expected = MON(c->supplements[k], c->supplementLevel);
+                expected.ball = POKEBALL_COUNT;
+                expected.nature = NATURE_HARDY;
+                EXPECT_EQ(memcmp(&s->mon, &expected, sizeof(expected)), 0);
+                candidates++;
+            }
+        }
+        EXPECT_EQ(anchor, c->anchor);
+        EXPECT_EQ(memcmp(before, c->authored, sizeof(before)), 0);
+    }
+    EXPECT_EQ(candidates, 21);
+    EXPECT_EQ(memcmp(&r1, &gRngValue, sizeof(r1)), 0);
+    EXPECT_EQ(memcmp(&r2, &gRng2Value, sizeof(r2)), 0);
+}
+
+
+TEST("Trainer Roster: Batch 2 stage arrays preserve ten family identities")
+{
+    u32 identities = 0;
+    for (u32 i = 0; i < ARRAY_COUNT(sBatch2Rosters); i++)
+    {
+        const struct LARosterProfile *p = GetLARosterProfile(sBatch2Rosters[i].trainerId, DIFFICULTY_NORMAL);
+        ASSUME(p != NULL);
+        for (u32 j = 0; j < p->supplementCount; j++)
+        {
+            bool32 seen = FALSE;
+            for (u32 k = 0; k < i; k++)
+            {
+                const struct LARosterProfile *previous = GetLARosterProfile(sBatch2Rosters[k].trainerId, DIFFICULTY_NORMAL);
+                if (previous->namespaceId != p->namespaceId)
+                    continue;
+                EXPECT(previous->supplements != p->supplements);
+                for (u32 m = 0; m < previous->supplementCount; m++)
+                    if (previous->supplements[m].candidateId == p->supplements[j].candidateId)
+                    {
+                        EXPECT_EQ(previous->supplements[m].mon.species, p->supplements[j].mon.species);
+                        seen = TRUE;
+                    }
+            }
+            if (!seen)
+                identities++;
+        }
+    }
+    EXPECT_EQ(identities, 10);
+    const struct LARosterProfile *j4 = GetLARosterProfile(TRAINER_JERRY_4, DIFFICULTY_NORMAL);
+    const struct LARosterProfile *j5 = GetLARosterProfile(TRAINER_JERRY_5, DIFFICULTY_NORMAL);
+    EXPECT_EQ(j4->supplementCount, 4);
+    EXPECT_EQ(j4->supplements[3].candidateId, 4);
+    EXPECT_EQ(j4->supplements[3].mon.species, SPECIES_BANETTE);
+    EXPECT_EQ(j5->supplementCount, 3);
+    for (u32 i = 0; i < j5->supplementCount; i++)
+        EXPECT_EQ(j5->supplements[i].candidateId, i + 1);
 }

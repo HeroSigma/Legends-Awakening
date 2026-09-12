@@ -337,6 +337,103 @@ static const struct LASetBundle sVolbeatBundle = {sVolbeatVariants, ARRAY_COUNT(
 static const struct LACompetitiveSet *const sCindyBirdVariants[] = {&sSwabluSet, &sAltariaSet};
 static const struct LASetBundle sCindyBirdBundle = {sCindyBirdVariants, ARRAY_COUNT(sCindyBirdVariants)};
 
+// Batch 2: reviewed final-species sets; source identities remain in assignments.
+static const struct LACompetitiveSet sGyaradosSet =
+{
+    .finalSpecies = SPECIES_GYARADOS, .training = &sFastPhysical, .abilitySlot = 0,
+    .moves = {MOVE_WATERFALL, MOVE_EARTHQUAKE, MOVE_ICE_FANG, MOVE_DRAGON_DANCE},
+    .heldItem = ITEM_LUM_BERRY,
+};
+static const struct LACompetitiveSet sCarvanhaSet =
+{
+    .finalSpecies = SPECIES_CARVANHA, .training = &sFastPhysical, .abilitySlot = 2,
+    .moves = {MOVE_LIQUIDATION, MOVE_CRUNCH, MOVE_ICE_FANG, MOVE_PROTECT},
+    .heldItem = ITEM_MYSTIC_WATER,
+};
+static const struct LACompetitiveSet sSharpedoSet =
+{
+    .finalSpecies = SPECIES_SHARPEDO, .training = &sFastPhysical, .abilitySlot = 2,
+    .moves = {MOVE_LIQUIDATION, MOVE_CRUNCH, MOVE_ICE_FANG, MOVE_PROTECT},
+    .heldItem = ITEM_MYSTIC_WATER,
+};
+static const struct LACompetitiveSet sTentacoolSet =
+{
+    .finalSpecies = SPECIES_TENTACOOL, .training = &sSpecialUtility, .abilitySlot = 1,
+    .moves = {MOVE_SURF, MOVE_SLUDGE_BOMB, MOVE_GIGA_DRAIN, MOVE_HAZE},
+    .heldItem = ITEM_EVIOLITE,
+};
+static const struct LACompetitiveSet sTentacruelSet =
+{
+    .finalSpecies = SPECIES_TENTACRUEL, .training = &sSpecialUtility, .abilitySlot = 1,
+    .moves = {MOVE_SURF, MOVE_SLUDGE_BOMB, MOVE_GIGA_DRAIN, MOVE_TOXIC},
+    .heldItem = ITEM_LEFTOVERS,
+};
+static const struct LACompetitiveSet sLoudredSet =
+{
+    .finalSpecies = SPECIES_LOUDRED, .training = &sBulkySpecial, .abilitySlot = 2,
+    .moves = {MOVE_HYPER_VOICE, MOVE_FLAMETHROWER, MOVE_ICE_BEAM, MOVE_SHADOW_BALL},
+    .heldItem = ITEM_EVIOLITE,
+};
+static const struct LACompetitiveSet sExploudSet =
+{
+    .finalSpecies = SPECIES_EXPLOUD, .training = &sBulkySpecial, .abilitySlot = 2,
+    .moves = {MOVE_BOOMBURST, MOVE_FLAMETHROWER, MOVE_ICE_BEAM, MOVE_SURF},
+    .heldItem = ITEM_SILK_SCARF,
+};
+static const struct LACompetitiveSet sKirliaSet =
+{
+    .finalSpecies = SPECIES_KIRLIA, .training = &sBulkySpecial, .abilitySlot = 1,
+    .moves = {MOVE_PSYCHIC, MOVE_DRAINING_KISS, MOVE_CALM_MIND, MOVE_THUNDERBOLT},
+    .heldItem = ITEM_EVIOLITE,
+};
+static const struct LACompetitiveSet sBanetteSet =
+{
+    .finalSpecies = SPECIES_BANETTE, .training = &sBulkyPhysical, .abilitySlot = 0,
+    .moves = {MOVE_KNOCK_OFF, MOVE_SHADOW_SNEAK, MOVE_WILL_O_WISP, MOVE_SUCKER_PUNCH},
+    .heldItem = ITEM_SITRUS_BERRY,
+};
+static const struct LACompetitiveSet sMedichamSet =
+{
+    .finalSpecies = SPECIES_MEDICHAM, .training = &sFastPhysical, .abilitySlot = 0,
+    .moves = {MOVE_HIGH_JUMP_KICK, MOVE_ZEN_HEADBUTT, MOVE_ICE_PUNCH, MOVE_THUNDER_PUNCH},
+    .heldItem = ITEM_BLACK_BELT,
+};
+static const struct LACompetitiveSet sChimechoSet =
+{
+    .finalSpecies = SPECIES_CHIMECHO, .training = &sSpecialUtility, .abilitySlot = 0,
+    .moves = {MOVE_PSYCHIC, MOVE_RECOVER, MOVE_HEAL_BELL, MOVE_THUNDER_WAVE},
+    .heldItem = ITEM_LEFTOVERS,
+};
+static const struct LACompetitiveSet sSableyeSet =
+{
+    .finalSpecies = SPECIES_SABLEYE, .training = &sPhysicalUtility, .abilitySlot = 2,
+    .moves = {MOVE_KNOCK_OFF, MOVE_RECOVER, MOVE_TAUNT, MOVE_THUNDER_WAVE},
+    .heldItem = ITEM_LEFTOVERS,
+};
+
+static const struct LACompetitiveSet *const sCarvanhaLineVariants[] = {&sCarvanhaSet, &sSharpedoSet};
+static const struct LASetBundle sCarvanhaLineBundle = {sCarvanhaLineVariants, ARRAY_COUNT(sCarvanhaLineVariants)};
+static const struct LACompetitiveSet *const sTentacoolLineVariants[] = {&sTentacoolSet, &sTentacruelSet};
+static const struct LASetBundle sTentacoolLineBundle = {sTentacoolLineVariants, ARRAY_COUNT(sTentacoolLineVariants)};
+static const struct LACompetitiveSet *const sLoudredLineVariants[] = {&sLoudredSet, &sExploudSet};
+static const struct LASetBundle sLoudredLineBundle = {sLoudredLineVariants, ARRAY_COUNT(sLoudredLineVariants)};
+static const struct LACompetitiveSet *const sGyaradosVariants[] = {&sGyaradosSet};
+static const struct LASetBundle sGyaradosBundle = {sGyaradosVariants, ARRAY_COUNT(sGyaradosVariants)};
+static const struct LACompetitiveSet *const sSharpedoVariants[] = {&sSharpedoSet};
+static const struct LASetBundle sSharpedoBundle = {sSharpedoVariants, ARRAY_COUNT(sSharpedoVariants)};
+static const struct LACompetitiveSet *const sTentacruelVariants[] = {&sTentacruelSet};
+static const struct LASetBundle sTentacruelBundle = {sTentacruelVariants, ARRAY_COUNT(sTentacruelVariants)};
+static const struct LACompetitiveSet *const sKirliaVariants[] = {&sKirliaSet};
+static const struct LASetBundle sKirliaBundle = {sKirliaVariants, ARRAY_COUNT(sKirliaVariants)};
+static const struct LACompetitiveSet *const sBanetteVariants[] = {&sBanetteSet};
+static const struct LASetBundle sBanetteBundle = {sBanetteVariants, ARRAY_COUNT(sBanetteVariants)};
+static const struct LACompetitiveSet *const sMedichamVariants[] = {&sMedichamSet};
+static const struct LASetBundle sMedichamBundle = {sMedichamVariants, ARRAY_COUNT(sMedichamVariants)};
+static const struct LACompetitiveSet *const sChimechoVariants[] = {&sChimechoSet};
+static const struct LASetBundle sChimechoBundle = {sChimechoVariants, ARRAY_COUNT(sChimechoVariants)};
+static const struct LACompetitiveSet *const sSableyeVariants[] = {&sSableyeSet};
+static const struct LASetBundle sSableyeBundle = {sSableyeVariants, ARRAY_COUNT(sSableyeVariants)};
+
 static const struct LASetAssignment sLASetAssignments[] =
 {
     {TRAINER_SAWYER_1, DIFFICULTY_NORMAL, 0, SPECIES_GEODUDE, &sGeodudeBundle},
@@ -409,4 +506,47 @@ static const struct LASetAssignment sLASetAssignments[] =
     {TRAINER_JAMES_5, DIFFICULTY_NORMAL, 3, SPECIES_NINJASK, &sNinjaskAceBundle},
     {TRAINER_JAMES_5, DIFFICULTY_NORMAL, 0x80060001u, SPECIES_BEAUTIFLY, &sBeautiflyBundle},
     {TRAINER_JAMES_5, DIFFICULTY_NORMAL, 0x80060002u, SPECIES_VOLBEAT, &sVolbeatBundle},
+    // Batch 2: 42 Normal-only assignments; guards are pre-evolution species.
+    {TRAINER_ELLIOT_3, DIFFICULTY_NORMAL, 0, SPECIES_GYARADOS, &sGyaradosBundle},
+    {TRAINER_ELLIOT_3, DIFFICULTY_NORMAL, 1, SPECIES_CARVANHA, &sCarvanhaLineBundle},
+    {TRAINER_ELLIOT_3, DIFFICULTY_NORMAL, 2, SPECIES_TENTACOOL, &sTentacoolLineBundle},
+    {TRAINER_ELLIOT_3, DIFFICULTY_NORMAL, 3, SPECIES_GYARADOS, &sGyaradosBundle},
+    {TRAINER_ELLIOT_3, DIFFICULTY_NORMAL, 0x80070001u, SPECIES_TENTACRUEL, &sTentacruelBundle},
+    {TRAINER_ELLIOT_3, DIFFICULTY_NORMAL, 0x80070002u, SPECIES_SHARPEDO, &sSharpedoBundle},
+    {TRAINER_ELLIOT_4, DIFFICULTY_NORMAL, 0, SPECIES_GYARADOS, &sGyaradosBundle},
+    {TRAINER_ELLIOT_4, DIFFICULTY_NORMAL, 1, SPECIES_CARVANHA, &sCarvanhaLineBundle},
+    {TRAINER_ELLIOT_4, DIFFICULTY_NORMAL, 2, SPECIES_TENTACRUEL, &sTentacruelBundle},
+    {TRAINER_ELLIOT_4, DIFFICULTY_NORMAL, 3, SPECIES_GYARADOS, &sGyaradosBundle},
+    {TRAINER_ELLIOT_4, DIFFICULTY_NORMAL, 0x80070001u, SPECIES_TENTACRUEL, &sTentacruelBundle},
+    {TRAINER_ELLIOT_4, DIFFICULTY_NORMAL, 0x80070002u, SPECIES_SHARPEDO, &sSharpedoBundle},
+    {TRAINER_ELLIOT_5, DIFFICULTY_NORMAL, 0, SPECIES_GYARADOS, &sGyaradosBundle},
+    {TRAINER_ELLIOT_5, DIFFICULTY_NORMAL, 1, SPECIES_SHARPEDO, &sSharpedoBundle},
+    {TRAINER_ELLIOT_5, DIFFICULTY_NORMAL, 2, SPECIES_GYARADOS, &sGyaradosBundle},
+    {TRAINER_ELLIOT_5, DIFFICULTY_NORMAL, 3, SPECIES_TENTACRUEL, &sTentacruelBundle},
+    {TRAINER_ELLIOT_5, DIFFICULTY_NORMAL, 0x80070001u, SPECIES_TENTACRUEL, &sTentacruelBundle},
+    {TRAINER_ELLIOT_5, DIFFICULTY_NORMAL, 0x80070002u, SPECIES_SHARPEDO, &sSharpedoBundle},
+    {TRAINER_KAREN_4, DIFFICULTY_NORMAL, 0, SPECIES_BRELOOM, &sBreloomBundle},
+    {TRAINER_KAREN_4, DIFFICULTY_NORMAL, 1, SPECIES_LOUDRED, &sLoudredLineBundle},
+    {TRAINER_KAREN_4, DIFFICULTY_NORMAL, 0x80080001u, SPECIES_BEAUTIFLY, &sBeautiflyBundle},
+    {TRAINER_KAREN_4, DIFFICULTY_NORMAL, 0x80080002u, SPECIES_SURSKIT, &sMasquerainBundle},
+    {TRAINER_KAREN_4, DIFFICULTY_NORMAL, 0x80080003u, SPECIES_ROSELIA, &sRoseliaBundle},
+    {TRAINER_KAREN_4, DIFFICULTY_NORMAL, 0x80080004u, SPECIES_NINJASK, &sNinjaskAceBundle},
+    {TRAINER_KAREN_5, DIFFICULTY_NORMAL, 0, SPECIES_BRELOOM, &sBreloomBundle},
+    {TRAINER_KAREN_5, DIFFICULTY_NORMAL, 1, SPECIES_EXPLOUD, &sLoudredLineBundle},
+    {TRAINER_KAREN_5, DIFFICULTY_NORMAL, 0x80080001u, SPECIES_BEAUTIFLY, &sBeautiflyBundle},
+    {TRAINER_KAREN_5, DIFFICULTY_NORMAL, 0x80080002u, SPECIES_SURSKIT, &sMasquerainBundle},
+    {TRAINER_KAREN_5, DIFFICULTY_NORMAL, 0x80080003u, SPECIES_ROSELIA, &sRoseliaBundle},
+    {TRAINER_KAREN_5, DIFFICULTY_NORMAL, 0x80080004u, SPECIES_NINJASK, &sNinjaskAceBundle},
+    {TRAINER_JERRY_4, DIFFICULTY_NORMAL, 0, SPECIES_KIRLIA, &sKirliaBundle},
+    {TRAINER_JERRY_4, DIFFICULTY_NORMAL, 1, SPECIES_MEDICHAM, &sMedichamBundle},
+    {TRAINER_JERRY_4, DIFFICULTY_NORMAL, 0x80090001u, SPECIES_GRUMPIG, &sGrumpigBundle},
+    {TRAINER_JERRY_4, DIFFICULTY_NORMAL, 0x80090002u, SPECIES_CHIMECHO, &sChimechoBundle},
+    {TRAINER_JERRY_4, DIFFICULTY_NORMAL, 0x80090003u, SPECIES_SABLEYE, &sSableyeBundle},
+    {TRAINER_JERRY_4, DIFFICULTY_NORMAL, 0x80090004u, SPECIES_BANETTE, &sBanetteBundle},
+    {TRAINER_JERRY_5, DIFFICULTY_NORMAL, 0, SPECIES_KIRLIA, &sKirliaBundle},
+    {TRAINER_JERRY_5, DIFFICULTY_NORMAL, 1, SPECIES_BANETTE, &sBanetteBundle},
+    {TRAINER_JERRY_5, DIFFICULTY_NORMAL, 2, SPECIES_MEDICHAM, &sMedichamBundle},
+    {TRAINER_JERRY_5, DIFFICULTY_NORMAL, 0x80090001u, SPECIES_GRUMPIG, &sGrumpigBundle},
+    {TRAINER_JERRY_5, DIFFICULTY_NORMAL, 0x80090002u, SPECIES_CHIMECHO, &sChimechoBundle},
+    {TRAINER_JERRY_5, DIFFICULTY_NORMAL, 0x80090003u, SPECIES_SABLEYE, &sSableyeBundle},
 };

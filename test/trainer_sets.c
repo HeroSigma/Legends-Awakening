@@ -963,3 +963,409 @@ TEST("Trainer Sets: Southwest shared species reuse explicit bundle pointers")
     EXPECT(GetLASetBundle(TRAINER_WINSTON_5, DIFFICULTY_NORMAL, 0x80030005u, SPECIES_WINGULL)
         == GetLASetBundle(TRAINER_HALEY_5, DIFFICULTY_NORMAL, 0x80050002u, SPECIES_WINGULL));
 }
+
+// A test-local copy exposes the ROM-const assignment census without adding a
+// runtime API. All behavioral assertions below call production lookup/construction.
+#include "../src/data/trainer_sets.h"
+
+static const struct SouthwestSetExpected sBatch2Sets[] =
+{
+    {SPECIES_GYARADOS, {0, 252, 0, 0, 4, 252}, NATURE_JOLLY, 0, ABILITY_INTIMIDATE,
+        {MOVE_WATERFALL, MOVE_EARTHQUAKE, MOVE_ICE_FANG, MOVE_DRAGON_DANCE}, ITEM_LUM_BERRY},
+    {SPECIES_CARVANHA, {0, 252, 0, 0, 4, 252}, NATURE_JOLLY, 2, ABILITY_SPEED_BOOST,
+        {MOVE_LIQUIDATION, MOVE_CRUNCH, MOVE_ICE_FANG, MOVE_PROTECT}, ITEM_MYSTIC_WATER},
+    {SPECIES_SHARPEDO, {0, 252, 0, 0, 4, 252}, NATURE_JOLLY, 2, ABILITY_SPEED_BOOST,
+        {MOVE_LIQUIDATION, MOVE_CRUNCH, MOVE_ICE_FANG, MOVE_PROTECT}, ITEM_MYSTIC_WATER},
+    {SPECIES_TENTACOOL, {252, 0, 252, 0, 4, 0}, NATURE_BOLD, 1, ABILITY_LIQUID_OOZE,
+        {MOVE_SURF, MOVE_SLUDGE_BOMB, MOVE_GIGA_DRAIN, MOVE_HAZE}, ITEM_EVIOLITE},
+    {SPECIES_TENTACRUEL, {252, 0, 252, 0, 4, 0}, NATURE_BOLD, 1, ABILITY_LIQUID_OOZE,
+        {MOVE_SURF, MOVE_SLUDGE_BOMB, MOVE_GIGA_DRAIN, MOVE_TOXIC}, ITEM_LEFTOVERS},
+    {SPECIES_LOUDRED, {252, 0, 0, 252, 4, 0}, NATURE_MODEST, 2, ABILITY_SCRAPPY,
+        {MOVE_HYPER_VOICE, MOVE_FLAMETHROWER, MOVE_ICE_BEAM, MOVE_SHADOW_BALL}, ITEM_EVIOLITE},
+    {SPECIES_EXPLOUD, {252, 0, 0, 252, 4, 0}, NATURE_MODEST, 2, ABILITY_SCRAPPY,
+        {MOVE_BOOMBURST, MOVE_FLAMETHROWER, MOVE_ICE_BEAM, MOVE_SURF}, ITEM_SILK_SCARF},
+    {SPECIES_KIRLIA, {252, 0, 0, 252, 4, 0}, NATURE_MODEST, 1, ABILITY_TRACE,
+        {MOVE_PSYCHIC, MOVE_DRAINING_KISS, MOVE_CALM_MIND, MOVE_THUNDERBOLT}, ITEM_EVIOLITE},
+    {SPECIES_BANETTE, {252, 252, 0, 0, 4, 0}, NATURE_ADAMANT, 0, ABILITY_INSOMNIA,
+        {MOVE_KNOCK_OFF, MOVE_SHADOW_SNEAK, MOVE_WILL_O_WISP, MOVE_SUCKER_PUNCH}, ITEM_SITRUS_BERRY},
+    {SPECIES_MEDICHAM, {0, 252, 0, 0, 4, 252}, NATURE_JOLLY, 0, ABILITY_PURE_POWER,
+        {MOVE_HIGH_JUMP_KICK, MOVE_ZEN_HEADBUTT, MOVE_ICE_PUNCH, MOVE_THUNDER_PUNCH}, ITEM_BLACK_BELT},
+    {SPECIES_CHIMECHO, {252, 0, 252, 0, 4, 0}, NATURE_BOLD, 0, ABILITY_LEVITATE,
+        {MOVE_PSYCHIC, MOVE_RECOVER, MOVE_HEAL_BELL, MOVE_THUNDER_WAVE}, ITEM_LEFTOVERS},
+    {SPECIES_SABLEYE, {252, 0, 252, 0, 4, 0}, NATURE_IMPISH, 2, ABILITY_PRANKSTER,
+        {MOVE_KNOCK_OFF, MOVE_RECOVER, MOVE_TAUNT, MOVE_THUNDER_WAVE}, ITEM_LEFTOVERS},
+};
+
+
+struct Batch2Encounter
+{
+    u16 id;
+    u8 sourceCount;
+    u8 anchor;
+    struct TrainerMon sources[4];
+    u32 keys[6];
+    enum Species guards[6];
+    enum Species species[6];
+    u8 levels[6];
+    const struct LASetBundle *bundles[6];
+};
+#define B2_MON(s, level, ivs) { .species = SPECIES_##s, .lvl = level, \
+    .iv = TRAINER_PARTY_IVS(ivs, ivs, ivs, ivs, ivs, ivs), \
+    .gender = TRAINER_MON_RANDOM_GENDER, .ball = POKEBALL_COUNT, \
+    .nature = NATURE_HARDY, .dynamaxLevel = MAX_DYNAMAX_LEVEL }
+static const struct Batch2Encounter sBatch2Encounters[] =
+{
+    {TRAINER_ELLIOT_3, 4, 29,
+     {B2_MON(GYARADOS, 29, 2), B2_MON(CARVANHA, 26, 2), B2_MON(TENTACOOL, 26, 2), B2_MON(GYARADOS, 29, 2)},
+     {0, 1, 2, 3, 0x80070001u, 0x80070002u},
+     {SPECIES_GYARADOS, SPECIES_CARVANHA, SPECIES_TENTACOOL, SPECIES_GYARADOS, SPECIES_TENTACRUEL, SPECIES_SHARPEDO},
+     {SPECIES_GYARADOS, SPECIES_CARVANHA, SPECIES_TENTACOOL, SPECIES_GYARADOS, SPECIES_TENTACRUEL, SPECIES_SHARPEDO},
+     {29, 26, 26, 29, 29, 29},
+     {&sGyaradosBundle, &sCarvanhaLineBundle, &sTentacoolLineBundle, &sGyaradosBundle, &sTentacruelBundle, &sSharpedoBundle}},
+    {TRAINER_ELLIOT_4, 4, 31,
+     {B2_MON(GYARADOS, 31, 3), B2_MON(CARVANHA, 30, 3), B2_MON(TENTACRUEL, 30, 3), B2_MON(GYARADOS, 31, 3)},
+     {0, 1, 2, 3, 0x80070001u, 0x80070002u},
+     {SPECIES_GYARADOS, SPECIES_CARVANHA, SPECIES_TENTACRUEL, SPECIES_GYARADOS, SPECIES_TENTACRUEL, SPECIES_SHARPEDO},
+     {SPECIES_GYARADOS, SPECIES_SHARPEDO, SPECIES_TENTACRUEL, SPECIES_GYARADOS, SPECIES_TENTACRUEL, SPECIES_SHARPEDO},
+     {31, 30, 30, 31, 31, 31},
+     {&sGyaradosBundle, &sCarvanhaLineBundle, &sTentacruelBundle, &sGyaradosBundle, &sTentacruelBundle, &sSharpedoBundle}},
+    {TRAINER_ELLIOT_5, 4, 35,
+     {B2_MON(GYARADOS, 33, 4), B2_MON(SHARPEDO, 33, 4), B2_MON(GYARADOS, 33, 4), B2_MON(TENTACRUEL, 35, 4)},
+     {0, 1, 2, 3, 0x80070001u, 0x80070002u},
+     {SPECIES_GYARADOS, SPECIES_SHARPEDO, SPECIES_GYARADOS, SPECIES_TENTACRUEL, SPECIES_TENTACRUEL, SPECIES_SHARPEDO},
+     {SPECIES_GYARADOS, SPECIES_SHARPEDO, SPECIES_GYARADOS, SPECIES_TENTACRUEL, SPECIES_TENTACRUEL, SPECIES_SHARPEDO},
+     {33, 33, 33, 35, 33, 33},
+     {&sGyaradosBundle, &sSharpedoBundle, &sGyaradosBundle, &sTentacruelBundle, &sTentacruelBundle, &sSharpedoBundle}},
+    {TRAINER_KAREN_4, 2, 32,
+     {B2_MON(BRELOOM, 32, 3), B2_MON(LOUDRED, 32, 3)},
+     {0, 1, 0x80080001u, 0x80080002u, 0x80080003u, 0x80080004u},
+     {SPECIES_BRELOOM, SPECIES_LOUDRED, SPECIES_BEAUTIFLY, SPECIES_SURSKIT, SPECIES_ROSELIA, SPECIES_NINJASK},
+     {SPECIES_BRELOOM, SPECIES_LOUDRED, SPECIES_BEAUTIFLY, SPECIES_MASQUERAIN, SPECIES_ROSELIA, SPECIES_NINJASK},
+     {32, 32, 32, 32, 32, 32},
+     {&sBreloomBundle, &sLoudredLineBundle, &sBeautiflyBundle, &sMasquerainBundle, &sRoseliaBundle, &sNinjaskAceBundle}},
+    {TRAINER_KAREN_5, 2, 35,
+     {B2_MON(BRELOOM, 35, 4), B2_MON(EXPLOUD, 35, 4)},
+     {0, 1, 0x80080001u, 0x80080002u, 0x80080003u, 0x80080004u},
+     {SPECIES_BRELOOM, SPECIES_EXPLOUD, SPECIES_BEAUTIFLY, SPECIES_SURSKIT, SPECIES_ROSELIA, SPECIES_NINJASK},
+     {SPECIES_BRELOOM, SPECIES_EXPLOUD, SPECIES_BEAUTIFLY, SPECIES_MASQUERAIN, SPECIES_ROSELIA, SPECIES_NINJASK},
+     {35, 35, 35, 35, 35, 35},
+     {&sBreloomBundle, &sLoudredLineBundle, &sBeautiflyBundle, &sMasquerainBundle, &sRoseliaBundle, &sNinjaskAceBundle}},
+    {TRAINER_JERRY_4, 2, 32,
+     {B2_MON(KIRLIA, 32, 3), B2_MON(MEDICHAM, 32, 3)},
+     {0, 1, 0x80090001u, 0x80090002u, 0x80090003u, 0x80090004u},
+     {SPECIES_KIRLIA, SPECIES_MEDICHAM, SPECIES_GRUMPIG, SPECIES_CHIMECHO, SPECIES_SABLEYE, SPECIES_BANETTE},
+     {SPECIES_KIRLIA, SPECIES_MEDICHAM, SPECIES_GRUMPIG, SPECIES_CHIMECHO, SPECIES_SABLEYE, SPECIES_BANETTE},
+     {32, 32, 32, 32, 32, 32},
+     {&sKirliaBundle, &sMedichamBundle, &sGrumpigBundle, &sChimechoBundle, &sSableyeBundle, &sBanetteBundle}},
+    {TRAINER_JERRY_5, 3, 34,
+     {B2_MON(KIRLIA, 34, 4), B2_MON(BANETTE, 34, 4), B2_MON(MEDICHAM, 34, 4)},
+     {0, 1, 2, 0x80090001u, 0x80090002u, 0x80090003u},
+     {SPECIES_KIRLIA, SPECIES_BANETTE, SPECIES_MEDICHAM, SPECIES_GRUMPIG, SPECIES_CHIMECHO, SPECIES_SABLEYE},
+     {SPECIES_KIRLIA, SPECIES_BANETTE, SPECIES_MEDICHAM, SPECIES_GRUMPIG, SPECIES_CHIMECHO, SPECIES_SABLEYE},
+     {34, 34, 34, 34, 34, 34},
+     {&sKirliaBundle, &sBanetteBundle, &sMedichamBundle, &sGrumpigBundle, &sChimechoBundle, &sSableyeBundle}},
+};
+#undef B2_MON
+
+static void ExpectBatch2Set(const struct LACompetitiveSet *set, u32 id)
+{
+    const struct SouthwestSetExpected *e = &sBatch2Sets[id];
+    ASSUME(set != NULL);
+    ASSUME(set->training != NULL);
+    EXPECT_EQ(set->finalSpecies, e->species);
+    EXPECT_EQ(set->training->nature, e->nature);
+    EXPECT_EQ(set->abilitySlot, e->slot);
+    EXPECT_EQ(gSpeciesInfo[set->finalSpecies].abilities[set->abilitySlot], e->ability);
+    EXPECT_EQ(set->heldItem, e->item);
+    EXPECT_EQ(memcmp(set->moves, e->moves, sizeof(e->moves)), 0);
+    EXPECT_EQ(memcmp(set->training->evs, e->evs, sizeof(e->evs)), 0);
+    u32 total = 0;
+    for (u32 i = 0; i < 6; i++)
+    {
+        EXPECT(set->training->evs[i] <= 252);
+        total += set->training->evs[i];
+    }
+    EXPECT_EQ(total, 508);
+    for (u32 i = 0; i < 4; i++)
+        EXPECT(LASetSpeciesCanLearnMove(set->finalSpecies, set->moves[i]));
+}
+
+
+static void ExpectBatch2Record(const struct LACompetitiveSet *set)
+{
+    for (u32 i = 0; i < ARRAY_COUNT(sBatch2Sets); i++)
+        if (sBatch2Sets[i].species == set->finalSpecies)
+        {
+            ExpectBatch2Set(set, i);
+            return;
+        }
+    const enum SouthwestSetId reused[] = {SW_SET_Breloom, SW_SET_Beautifly,
+        SW_SET_Masquerain, SW_SET_Roselia, SW_SET_NinjaskAce, SW_SET_Grumpig};
+    for (u32 i = 0; i < ARRAY_COUNT(reused); i++)
+        if (sSouthwestSets[reused[i]].species == set->finalSpecies)
+        {
+            ExpectSouthwestSet(set, reused[i]);
+            return;
+        }
+    EXPECT(FALSE);
+}
+
+TEST("Trainer Sets: Batch 2 42 exact assignments twelve new records and complete variants")
+{
+    bool32 seen[ARRAY_COUNT(sBatch2Sets)] = {0};
+    u32 assignments = 0;
+    rng_value_t r1 = gRngValue, r2 = gRng2Value;
+    for (u32 i = 0; i < ARRAY_COUNT(sBatch2Encounters); i++)
+    {
+        const struct Batch2Encounter *c = &sBatch2Encounters[i];
+        for (u32 j = 0; j < PARTY_SIZE; j++)
+        {
+            const struct LASetBundle *bundle = GetLASetBundle(c->id, DIFFICULTY_NORMAL, c->keys[j], c->guards[j]);
+            ASSUME(bundle != NULL);
+            EXPECT_EQ(bundle->count, c->bundles[j]->count);
+            EXPECT(GetLASetBundle(c->id, DIFFICULTY_EASY, c->keys[j], c->guards[j]) == NULL);
+            EXPECT(GetLASetBundle(c->id, DIFFICULTY_HARD, c->keys[j], c->guards[j]) == NULL);
+            EXPECT(GetLASetBundle(c->id, DIFFICULTY_NORMAL, c->keys[j], SPECIES_MAGIKARP) == NULL);
+            for (u32 k = 0; k < bundle->count; k++)
+            {
+                const struct LACompetitiveSet *set = bundle->variants[k];
+                EXPECT_EQ(set->finalSpecies, c->bundles[j]->variants[k]->finalSpecies);
+                ExpectBatch2Record(set);
+                struct LACompetitiveSet before = *set;
+                struct LASetTraining trainingBefore = *set->training;
+                struct TrainerMon mon = MON(set->finalSpecies, 50);
+                struct TrainerMon original = mon;
+                EXPECT(ApplyLACompetitiveSet(&mon, bundle));
+                EXPECT_EQ(mon.iv, LA_SET_PERFECT_IVS);
+                EXPECT_EQ(mon.ability, gSpeciesInfo[set->finalSpecies].abilities[set->abilitySlot]);
+                EXPECT_EQ(mon.heldItem, set->heldItem);
+                EXPECT_EQ((u32)mon.nature, set->training->nature);
+                EXPECT_EQ(memcmp(mon.moves, set->moves, sizeof(mon.moves)), 0);
+                EXPECT_EQ(memcmp(mon.ev, set->training->evs, 6), 0);
+                EXPECT_EQ(mon.species, original.species);
+                EXPECT_EQ(mon.lvl, original.lvl);
+                EXPECT_EQ(memcmp(set, &before, sizeof(before)), 0);
+                EXPECT_EQ(memcmp(set->training, &trainingBefore, sizeof(trainingBefore)), 0);
+                for (u32 m = 0; m < ARRAY_COUNT(sBatch2Sets); m++)
+                    if (set->finalSpecies == sBatch2Sets[m].species)
+                        seen[m] = TRUE;
+            }
+            // Compare bundle identity relationships, not test-local pointers.
+            for (u32 k = 0; k <= i; k++)
+                for (u32 m = 0; m < PARTY_SIZE; m++)
+                {
+                    const struct Batch2Encounter *other = &sBatch2Encounters[k];
+                    const struct LASetBundle *otherBundle = GetLASetBundle(other->id, DIFFICULTY_NORMAL, other->keys[m], other->guards[m]);
+                    EXPECT_EQ(bundle == otherBundle, c->bundles[j] == other->bundles[m]);
+                }
+            assignments++;
+        }
+    }
+    EXPECT_EQ(assignments, 42);
+    EXPECT_EQ(ARRAY_COUNT(sBatch2Sets), 12);
+    for (u32 i = 0; i < ARRAY_COUNT(seen); i++)
+        EXPECT(seen[i]);
+    EXPECT_EQ(memcmp(&r1, &gRngValue, sizeof(r1)), 0);
+    EXPECT_EQ(memcmp(&r2, &gRng2Value, sizeof(r2)), 0);
+}
+
+TEST("Trainer Sets: production census 112 unique Normal rows with exactly 42 Batch 2")
+{
+    u32 batch2 = 0;
+    EXPECT_EQ(ARRAY_COUNT(sLASetAssignments), 112);
+    for (u32 i = 0; i < ARRAY_COUNT(sLASetAssignments); i++)
+    {
+        const struct LASetAssignment *row = &sLASetAssignments[i];
+        EXPECT_EQ(row->difficulty, DIFFICULTY_NORMAL);
+        EXPECT(GetLASetBundle(row->trainerId, row->difficulty, row->sourceKey, row->authoredSpecies) != NULL);
+        for (u32 j = 0; j < i; j++)
+        {
+            const struct LASetAssignment *other = &sLASetAssignments[j];
+            EXPECT(row->trainerId != other->trainerId || row->difficulty != other->difficulty
+                || row->sourceKey != other->sourceKey);
+        }
+        for (u32 j = 0; j < ARRAY_COUNT(sBatch2Encounters); j++)
+            if (row->trainerId == sBatch2Encounters[j].id)
+            {
+                const struct Batch2Encounter *c = &sBatch2Encounters[j];
+                u32 matches = 0;
+                for (u32 k = 0; k < PARTY_SIZE; k++)
+                    if (row->sourceKey == c->keys[k] && row->authoredSpecies == c->guards[k]
+                     && row->bundle == c->bundles[k])
+                        matches++;
+                EXPECT_EQ(matches, 1);
+                batch2++;
+            }
+    }
+    EXPECT_EQ(batch2, 42);
+}
+
+static void CheckBatch2Encounter(u32 index, u8 delta)
+{
+    Setup();
+    const struct Batch2Encounter *c = &sBatch2Encounters[index];
+    if (delta != 0)
+    {
+        // Real Phase 2 cells: ACE/ELITE=31, ACE/MASTER=37.
+        SetTrainerRank(TRAINER_RANK_ACE);
+        u8 base = index == 0 ? 31 : 37;
+        SetWorldPhase(index == 0 ? WORLD_PHASE_ELITE : WORLD_PHASE_MASTER);
+        u8 playerLevel = base + 3 * (c->anchor + delta - base);
+        CreateMon(&gParties[B_TRAINER_PLAYER][0], SPECIES_MAGIKARP, playerLevel, 0, OTID_STRUCT_PLAYER_ID);
+    }
+    const struct Trainer trainer = {.party = c->sources, .partySize = c->sourceCount};
+    const struct LARosterProfile *profile = GetLARosterProfile(c->id, DIFFICULTY_NORMAL);
+    struct LARosterSelection selected = SelectLARoster(&trainer, profile, PARTY_SIZE);
+    ASSUME(selected.count == PARTY_SIZE);
+    struct TrainerMon before[PARTY_SIZE];
+    u8 anchor = 0;
+    for (u32 i = 0; i < PARTY_SIZE; i++)
+    {
+        before[i] = *selected.members[i].source;
+        anchor = max(anchor, before[i].lvl);
+        EXPECT_EQ(selected.members[i].sourceKey, c->keys[i]);
+        EXPECT_EQ(before[i].species, c->guards[i]);
+    }
+    EXPECT_EQ(anchor, c->anchor);
+    struct LAPartyStrength strength = CalculateTrainerPartyStrength();
+    u8 world = CalculateTrainerScalingWorldLevel(GetTrainerRank(), GetWorldPhase(), strength.avgLevel, strength.usableCount);
+    EXPECT_EQ(CalculateTrainerLevelDelta(anchor, world, 0), delta);
+    struct BattleHistory history = {0};
+    history.trainerItems[B_TRAINER_OPPONENT_A][0] = ITEM_FULL_RESTORE;
+    history.trainerItems[B_TRAINER_OPPONENT_A][1] = ITEM_HYPER_POTION;
+    struct BattleHistory historyBefore = history;
+    struct BattleHistory *oldHistory = gBattleHistory;
+    gBattleHistory = &history;
+    void (*oldObserver)(u32) = gTestLARosterSourceObserver;
+    sSouthwestObservedCount = 0;
+    gTestLARosterSourceObserver = ObserveSouthwestKey;
+    TestCreateLATrainerPartyWithPolicyForId(gParties[B_TRAINER_OPPONENT_A], &trainer, c->id, GetLATrainerPolicy(0));
+    gTestLARosterSourceObserver = oldObserver;
+    gBattleHistory = oldHistory;
+    EXPECT_EQ(memcmp(&history, &historyBefore, sizeof(history)), 0);
+    EXPECT_EQ(sSouthwestObservedCount, PARTY_SIZE);
+    for (u32 i = 0; i < PARTY_SIZE; i++)
+    {
+        enum Species expected = c->species[i];
+        if (index == 0 && delta >= 4 && i == 1)
+            expected = SPECIES_SHARPEDO;
+        if (index == 0 && delta >= 4 && i == 2)
+            expected = SPECIES_TENTACRUEL;
+        if (index == 3 && delta >= 8 && i == 1)
+            expected = SPECIES_EXPLOUD;
+        struct Pokemon *mon = &gParties[B_TRAINER_OPPONENT_A][i];
+        EXPECT_EQ(GetMonData(mon, MON_DATA_SPECIES), expected);
+        EXPECT_EQ(GetMonData(mon, MON_DATA_LEVEL), c->levels[i] + delta);
+        EXPECT_EQ(sSouthwestObservedKeys[i], c->keys[i]);
+        EXPECT_EQ(memcmp(&before[i], selected.members[i].source, sizeof(before[i])), 0);
+        const struct LASetBundle *bundle = GetLASetBundle(c->id, DIFFICULTY_NORMAL, c->keys[i], c->guards[i]);
+        const struct LACompetitiveSet *set = NULL;
+        for (u32 j = 0; j < bundle->count; j++)
+            if (bundle->variants[j]->finalSpecies == expected)
+                set = bundle->variants[j];
+        ASSUME(set != NULL);
+        ExpectBatch2Record(set);
+        CheckGenerated(mon, set);
+    }
+    Setup();
+}
+
+TEST("Trainer Sets: Batch 2 ELLIOT_3 exact six production construction") { CheckBatch2Encounter(0, 0); }
+
+TEST("Trainer Sets: Batch 2 ELLIOT_4 exact six production construction") { CheckBatch2Encounter(1, 0); }
+
+TEST("Trainer Sets: Batch 2 ELLIOT_5 exact six production construction") { CheckBatch2Encounter(2, 0); }
+
+TEST("Trainer Sets: Batch 2 KAREN_4 exact six production construction") { CheckBatch2Encounter(3, 0); }
+
+TEST("Trainer Sets: Batch 2 KAREN_5 exact six production construction") { CheckBatch2Encounter(4, 0); }
+
+TEST("Trainer Sets: Batch 2 JERRY_4 exact six production construction") { CheckBatch2Encounter(5, 0); }
+
+TEST("Trainer Sets: Batch 2 JERRY_5 exact six production construction") { CheckBatch2Encounter(6, 0); }
+
+TEST("Trainer Sets: Batch 2 Carvanha Sharpedo and Tentacool Tentacruel delta three boundary")
+{
+    CheckBatch2Encounter(0, 3);
+}
+TEST("Trainer Sets: Batch 2 Carvanha Sharpedo and Tentacool Tentacruel delta four boundary")
+{
+    CheckBatch2Encounter(0, 4);
+}
+TEST("Trainer Sets: Batch 2 Loudred Exploud delta seven boundary")
+{
+    CheckBatch2Encounter(3, 7);
+}
+TEST("Trainer Sets: Batch 2 Loudred Exploud delta eight boundary")
+{
+    CheckBatch2Encounter(3, 8);
+}
+TEST("Trainer Sets: Batch 2 Surskit Masquerain guard and immediate application")
+{
+    for (u32 i = 3; i <= 4; i++)
+    {
+        const struct Batch2Encounter *c = &sBatch2Encounters[i];
+        const struct LASetBundle *bundle = GetLASetBundle(c->id, DIFFICULTY_NORMAL, 0x80080002u, SPECIES_SURSKIT);
+        ASSUME(bundle != NULL);
+        EXPECT_EQ(bundle->count, 1);
+        EXPECT_EQ(bundle->variants[0]->finalSpecies, SPECIES_MASQUERAIN);
+        EXPECT(GetLASetBundle(c->id, DIFFICULTY_NORMAL, 0x80080002u, SPECIES_MASQUERAIN) == NULL);
+        struct TrainerMon mon = MON(SPECIES_SURSKIT, c->anchor);
+        ApplyTrainerEvolution(&mon, NULL);
+        EXPECT_EQ(mon.species, SPECIES_MASQUERAIN);
+        EXPECT(ApplyLACompetitiveSet(&mon, bundle));
+    }
+}
+TEST("Trainer Sets: Batch 2 Kirlia branch stop and Roselia stone stop through level 100")
+{
+    const u16 ids[] = {TRAINER_JERRY_4, TRAINER_JERRY_5, TRAINER_KAREN_4, TRAINER_KAREN_5};
+    const u8 bases[] = {32, 34, 32, 35};
+    for (u32 i = 0; i < ARRAY_COUNT(ids); i++)
+    {
+        enum Species species = i < 2 ? SPECIES_KIRLIA : SPECIES_ROSELIA;
+        u32 key = i < 2 ? 0 : 0x80080003u;
+        const struct LASetBundle *bundle = GetLASetBundle(ids[i], DIFFICULTY_NORMAL, key, species);
+        for (u32 level = bases[i]; level <= MAX_LEVEL; level++)
+        {
+            struct TrainerMon mon = MON(species, level);
+            ApplyTrainerEvolution(&mon, NULL);
+            EXPECT_EQ(mon.species, species);
+            EXPECT(ApplyLACompetitiveSet(&mon, bundle));
+            EXPECT_EQ(mon.heldItem, ITEM_EVIOLITE);
+        }
+    }
+}
+TEST("Trainer Sets: Batch 2 six existing bundle pointers reused unchanged")
+{
+    EXPECT(GetLASetBundle(TRAINER_KAREN_4, DIFFICULTY_NORMAL, 0, SPECIES_BRELOOM)
+        == GetLASetBundle(TRAINER_CALVIN_5, DIFFICULTY_NORMAL, 0x80020001u, SPECIES_SHROOMISH));
+    EXPECT(GetLASetBundle(TRAINER_KAREN_4, DIFFICULTY_NORMAL, 0x80080001u, SPECIES_BEAUTIFLY)
+        == GetLASetBundle(TRAINER_CINDY_6, DIFFICULTY_NORMAL, 0x80040004u, SPECIES_BEAUTIFLY));
+    EXPECT(GetLASetBundle(TRAINER_KAREN_4, DIFFICULTY_NORMAL, 0x80080002u, SPECIES_SURSKIT)
+        == GetLASetBundle(TRAINER_JAMES_5, DIFFICULTY_NORMAL, 0, SPECIES_SURSKIT));
+    EXPECT(GetLASetBundle(TRAINER_KAREN_4, DIFFICULTY_NORMAL, 0x80080003u, SPECIES_ROSELIA)
+        == GetLASetBundle(TRAINER_CINDY_6, DIFFICULTY_NORMAL, 0x80040002u, SPECIES_ROSELIA));
+    EXPECT(GetLASetBundle(TRAINER_KAREN_4, DIFFICULTY_NORMAL, 0x80080004u, SPECIES_NINJASK)
+        == GetLASetBundle(TRAINER_JAMES_5, DIFFICULTY_NORMAL, 3, SPECIES_NINJASK));
+    EXPECT(GetLASetBundle(TRAINER_JERRY_4, DIFFICULTY_NORMAL, 0x80090001u, SPECIES_GRUMPIG)
+        == GetLASetBundle(TRAINER_WINSTON_5, DIFFICULTY_NORMAL, 0x80030002u, SPECIES_SPOINK));
+}
+TEST("Trainer Sets: Batch 2 earlier encounters controls doubles and majors remain unassigned")
+{
+    const u16 inactive[] = {
+        TRAINER_ELLIOT_1, TRAINER_ELLIOT_2,
+        TRAINER_KAREN_1, TRAINER_KAREN_2, TRAINER_KAREN_3,
+        TRAINER_JERRY_1, TRAINER_JERRY_2, TRAINER_JERRY_3,
+        TRAINER_JOEY, TRAINER_JOSE, TRAINER_DEVAN, TRAINER_DOUGLAS,
+        TRAINER_KYLA, TRAINER_NED, TRAINER_KEVIN, TRAINER_KATE_AND_JOY,
+        TRAINER_ROXANNE_1, TRAINER_ROXANNE_2, TRAINER_ROXANNE_3, TRAINER_ROXANNE_4, TRAINER_ROXANNE_5,
+        TRAINER_BRAWLY_1, TRAINER_BRAWLY_2, TRAINER_BRAWLY_3, TRAINER_BRAWLY_4, TRAINER_BRAWLY_5,
+    };
+    for (u32 i = 0; i < ARRAY_COUNT(inactive); i++)
+    {
+        EXPECT(GetLARosterProfile(inactive[i], DIFFICULTY_NORMAL) == NULL);
+        for (u32 j = 0; j < ARRAY_COUNT(sLASetAssignments); j++)
+            EXPECT(sLASetAssignments[j].trainerId != inactive[i]);
+    }
+    EXPECT(GetLASetBundle(TRAINER_JERRY_5, DIFFICULTY_NORMAL, 0x80090004u, SPECIES_BANETTE) == NULL);
+}

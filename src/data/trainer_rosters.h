@@ -240,6 +240,168 @@ static const struct LARosterProfile sJamesProfile =
 
 #undef SOUTHWEST_SUPPLEMENT
 
+// Batch 2: permanent family namespaces 7 Elliot, 8 Karen, 9 Jerry.
+// Candidate IDs retain their source species across stage-specific arrays.
+#define BATCH2_SUPPLEMENT(id, speciesId, level) \
+    { .candidateId = (id), .mon = { .species = (speciesId), .lvl = (level), \
+      .gender = TRAINER_MON_RANDOM_GENDER, .ball = POKEBALL_COUNT, .nature = NATURE_HARDY } }
+
+static const struct LARosterAuthoredRef sElliot3Retained[] =
+{
+    {0, SPECIES_GYARADOS},
+    {1, SPECIES_CARVANHA},
+    {2, SPECIES_TENTACOOL},
+    {3, SPECIES_GYARADOS},
+};
+static const struct LARosterSupplement sElliot3Supplements[] =
+{
+    BATCH2_SUPPLEMENT(1, SPECIES_TENTACRUEL, 29),
+    BATCH2_SUPPLEMENT(2, SPECIES_SHARPEDO, 29),
+};
+STATIC_ASSERT(ARRAY_COUNT(sElliot3Retained) + ARRAY_COUNT(sElliot3Supplements) == PARTY_SIZE, Elliot3RosterSize)
+static const struct LARosterProfile sElliot3Profile =
+{
+    .retained = sElliot3Retained,
+    .supplements = sElliot3Supplements,
+    .namespaceId = 7,
+    .retainedCount = ARRAY_COUNT(sElliot3Retained),
+    .supplementCount = ARRAY_COUNT(sElliot3Supplements),
+};
+
+static const struct LARosterAuthoredRef sElliot4Retained[] =
+{
+    {0, SPECIES_GYARADOS},
+    {1, SPECIES_CARVANHA},
+    {2, SPECIES_TENTACRUEL},
+    {3, SPECIES_GYARADOS},
+};
+static const struct LARosterSupplement sElliot4Supplements[] =
+{
+    BATCH2_SUPPLEMENT(1, SPECIES_TENTACRUEL, 31),
+    BATCH2_SUPPLEMENT(2, SPECIES_SHARPEDO, 31),
+};
+STATIC_ASSERT(ARRAY_COUNT(sElliot4Retained) + ARRAY_COUNT(sElliot4Supplements) == PARTY_SIZE, Elliot4RosterSize)
+static const struct LARosterProfile sElliot4Profile =
+{
+    .retained = sElliot4Retained,
+    .supplements = sElliot4Supplements,
+    .namespaceId = 7,
+    .retainedCount = ARRAY_COUNT(sElliot4Retained),
+    .supplementCount = ARRAY_COUNT(sElliot4Supplements),
+};
+
+static const struct LARosterAuthoredRef sElliot5Retained[] =
+{
+    {0, SPECIES_GYARADOS},
+    {1, SPECIES_SHARPEDO},
+    {2, SPECIES_GYARADOS},
+    {3, SPECIES_TENTACRUEL},
+};
+static const struct LARosterSupplement sElliot5Supplements[] =
+{
+    BATCH2_SUPPLEMENT(1, SPECIES_TENTACRUEL, 33),
+    BATCH2_SUPPLEMENT(2, SPECIES_SHARPEDO, 33),
+};
+STATIC_ASSERT(ARRAY_COUNT(sElliot5Retained) + ARRAY_COUNT(sElliot5Supplements) == PARTY_SIZE, Elliot5RosterSize)
+static const struct LARosterProfile sElliot5Profile =
+{
+    .retained = sElliot5Retained,
+    .supplements = sElliot5Supplements,
+    .namespaceId = 7,
+    .retainedCount = ARRAY_COUNT(sElliot5Retained),
+    .supplementCount = ARRAY_COUNT(sElliot5Supplements),
+};
+
+static const struct LARosterAuthoredRef sKaren4Retained[] =
+{
+    {0, SPECIES_BRELOOM},
+    {1, SPECIES_LOUDRED},
+};
+static const struct LARosterSupplement sKaren4Supplements[] =
+{
+    BATCH2_SUPPLEMENT(1, SPECIES_BEAUTIFLY, 32),
+    BATCH2_SUPPLEMENT(2, SPECIES_SURSKIT, 32),
+    BATCH2_SUPPLEMENT(3, SPECIES_ROSELIA, 32),
+    BATCH2_SUPPLEMENT(4, SPECIES_NINJASK, 32),
+};
+STATIC_ASSERT(ARRAY_COUNT(sKaren4Retained) + ARRAY_COUNT(sKaren4Supplements) == PARTY_SIZE, Karen4RosterSize)
+static const struct LARosterProfile sKaren4Profile =
+{
+    .retained = sKaren4Retained,
+    .supplements = sKaren4Supplements,
+    .namespaceId = 8,
+    .retainedCount = ARRAY_COUNT(sKaren4Retained),
+    .supplementCount = ARRAY_COUNT(sKaren4Supplements),
+};
+
+static const struct LARosterAuthoredRef sKaren5Retained[] =
+{
+    {0, SPECIES_BRELOOM},
+    {1, SPECIES_EXPLOUD},
+};
+static const struct LARosterSupplement sKaren5Supplements[] =
+{
+    BATCH2_SUPPLEMENT(1, SPECIES_BEAUTIFLY, 35),
+    BATCH2_SUPPLEMENT(2, SPECIES_SURSKIT, 35),
+    BATCH2_SUPPLEMENT(3, SPECIES_ROSELIA, 35),
+    BATCH2_SUPPLEMENT(4, SPECIES_NINJASK, 35),
+};
+STATIC_ASSERT(ARRAY_COUNT(sKaren5Retained) + ARRAY_COUNT(sKaren5Supplements) == PARTY_SIZE, Karen5RosterSize)
+static const struct LARosterProfile sKaren5Profile =
+{
+    .retained = sKaren5Retained,
+    .supplements = sKaren5Supplements,
+    .namespaceId = 8,
+    .retainedCount = ARRAY_COUNT(sKaren5Retained),
+    .supplementCount = ARRAY_COUNT(sKaren5Supplements),
+};
+
+static const struct LARosterAuthoredRef sJerry4Retained[] =
+{
+    {0, SPECIES_KIRLIA},
+    {1, SPECIES_MEDICHAM},
+};
+static const struct LARosterSupplement sJerry4Supplements[] =
+{
+    BATCH2_SUPPLEMENT(1, SPECIES_GRUMPIG, 32),
+    BATCH2_SUPPLEMENT(2, SPECIES_CHIMECHO, 32),
+    BATCH2_SUPPLEMENT(3, SPECIES_SABLEYE, 32),
+    BATCH2_SUPPLEMENT(4, SPECIES_BANETTE, 32),
+};
+STATIC_ASSERT(ARRAY_COUNT(sJerry4Retained) + ARRAY_COUNT(sJerry4Supplements) == PARTY_SIZE, Jerry4RosterSize)
+static const struct LARosterProfile sJerry4Profile =
+{
+    .retained = sJerry4Retained,
+    .supplements = sJerry4Supplements,
+    .namespaceId = 9,
+    .retainedCount = ARRAY_COUNT(sJerry4Retained),
+    .supplementCount = ARRAY_COUNT(sJerry4Supplements),
+};
+
+static const struct LARosterAuthoredRef sJerry5Retained[] =
+{
+    {0, SPECIES_KIRLIA},
+    {1, SPECIES_BANETTE},
+    {2, SPECIES_MEDICHAM},
+};
+static const struct LARosterSupplement sJerry5Supplements[] =
+{
+    BATCH2_SUPPLEMENT(1, SPECIES_GRUMPIG, 34),
+    BATCH2_SUPPLEMENT(2, SPECIES_CHIMECHO, 34),
+    BATCH2_SUPPLEMENT(3, SPECIES_SABLEYE, 34),
+};
+STATIC_ASSERT(ARRAY_COUNT(sJerry5Retained) + ARRAY_COUNT(sJerry5Supplements) == PARTY_SIZE, Jerry5RosterSize)
+static const struct LARosterProfile sJerry5Profile =
+{
+    .retained = sJerry5Retained,
+    .supplements = sJerry5Supplements,
+    .namespaceId = 9,
+    .retainedCount = ARRAY_COUNT(sJerry5Retained),
+    .supplementCount = ARRAY_COUNT(sJerry5Supplements),
+};
+
+#undef BATCH2_SUPPLEMENT
+
 static const struct LARosterAssignment sLARosterAssignments[] =
 {
     {TRAINER_SAWYER_1, DIFFICULTY_NORMAL, &sSawyer1Profile},
@@ -252,4 +414,11 @@ static const struct LARosterAssignment sLARosterAssignments[] =
     {TRAINER_CINDY_6, DIFFICULTY_NORMAL, &sCindyProfile},
     {TRAINER_HALEY_5, DIFFICULTY_NORMAL, &sHaleyProfile},
     {TRAINER_JAMES_5, DIFFICULTY_NORMAL, &sJamesProfile},
+    {TRAINER_ELLIOT_3, DIFFICULTY_NORMAL, &sElliot3Profile},
+    {TRAINER_ELLIOT_4, DIFFICULTY_NORMAL, &sElliot4Profile},
+    {TRAINER_ELLIOT_5, DIFFICULTY_NORMAL, &sElliot5Profile},
+    {TRAINER_KAREN_4, DIFFICULTY_NORMAL, &sKaren4Profile},
+    {TRAINER_KAREN_5, DIFFICULTY_NORMAL, &sKaren5Profile},
+    {TRAINER_JERRY_4, DIFFICULTY_NORMAL, &sJerry4Profile},
+    {TRAINER_JERRY_5, DIFFICULTY_NORMAL, &sJerry5Profile},
 };
