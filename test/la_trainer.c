@@ -85,6 +85,8 @@ TEST("LA Trainer: frontier boss classes resolve to EXEMPT")
     EXPECT(GetLATrainerCategoryForClass(TRAINER_CLASS_PIKE_QUEEN) == LA_TRAINER_EXEMPT);
     EXPECT(GetLATrainerCategoryForClass(TRAINER_CLASS_PYRAMID_KING) == LA_TRAINER_EXEMPT);
     EXPECT(GetLATrainerCategoryForClass(TRAINER_CLASS_FACTORY_HEAD) == LA_TRAINER_EXEMPT);
+    EXPECT(GetLATrainerCategoryForClass(TRAINER_CLASS_PALACE_MAVEN) == LA_TRAINER_EXEMPT);
+    EXPECT(GetLATrainerCategoryForClass(TRAINER_CLASS_ARENA_TYCOON) == LA_TRAINER_EXEMPT);
 }
 
 TEST("LA Trainer: Wally explicit ID override marks a non-class major -> MAJOR")
@@ -396,4 +398,20 @@ TEST("LA Trainer: competitive set permission is ordinary and orthogonal")
     EXPECT(CanApplyLACompetitiveSets(0, policy, TRUE, BATTLE_TYPE_TRAINER, FALSE));
     policy.flags = LA_POLICY_ORDINARY & ~LA_TRAINER_POLICY_COMPETITIVE_SETS;
     EXPECT(!CanApplyLACompetitiveSets(0, policy, TRUE, BATTLE_TYPE_TRAINER, FALSE));
+}
+
+TEST("LA Trainer: all seven Frontier classes deny generic transformation permissions")
+{
+    // Test ROM trainer rows differ from production; test the authoritative class mapping.
+    const u8 classes[] = {TRAINER_CLASS_SALON_MAIDEN, TRAINER_CLASS_DOME_ACE,
+        TRAINER_CLASS_PALACE_MAVEN, TRAINER_CLASS_ARENA_TYCOON, TRAINER_CLASS_FACTORY_HEAD,
+        TRAINER_CLASS_PIKE_QUEEN, TRAINER_CLASS_PYRAMID_KING};
+    for (u32 i = 0; i < ARRAY_COUNT(classes); i++)
+    {
+        struct LATrainerPolicy policy = {GetLATrainerCategoryForClass(classes[i]), LA_POLICY_EXEMPT};
+        EXPECT_EQ(policy.category, LA_TRAINER_EXEMPT);
+        EXPECT_EQ(policy.flags & (LA_POLICY_ORDINARY | LA_TRAINER_POLICY_HANDCRAFTED), 0);
+        EXPECT(!LATrainerRuntimeEligibility(policy, 0, BATTLE_TYPE_TRAINER, FALSE));
+        EXPECT(!CanApplyLACompetitiveSets(0, policy, TRUE, BATTLE_TYPE_TRAINER, FALSE));
+    }
 }

@@ -98,10 +98,25 @@ static bool32 ValidSetItem(enum Species species, enum Item item)
     if (item == ITEM_NONE || item >= ITEMS_COUNT || gItemsInfo[item].name == NULL
      || gItemsInfo[item].holdEffect == 0)
         return FALSE;
-    // Explicit pilot allowlist. New held items require reviewed set content;
+    // Explicit ordinary-content allowlist. New items require reviewed content;
     // this never admits Mega Stones, Z-Crystals, primal orbs or Everstone.
-    if (item == ITEM_LEFTOVERS)
+    switch (item)
+    {
+    case ITEM_LEFTOVERS:
+    case ITEM_SITRUS_BERRY:
+    case ITEM_LUM_BERRY:
+    case ITEM_SILK_SCARF:
+    case ITEM_BLACK_BELT:
+    case ITEM_SHARP_BEAK:
+    case ITEM_MYSTIC_WATER:
+    case ITEM_MAGNET:
+    case ITEM_BLACK_GLASSES:
+    case ITEM_TWISTED_SPOON:
+    case ITEM_METAL_COAT:
         return TRUE;
+    default:
+        break;
+    }
     if (item == ITEM_EVIOLITE)
     {
         const struct Evolution *evos = GetSpeciesEvolutions(species);

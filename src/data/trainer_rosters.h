@@ -117,6 +117,129 @@ static const struct LARosterProfile sSawyer5Profile =
 
 #undef SAWYER_SUPPLEMENT
 
+// Southwest Batch 1: namespaces 2..6 are permanent family identities.
+// Candidate IDs remain stable when priority changes; source fields stay authored.
+#define SOUTHWEST_SUPPLEMENT(id, speciesId, level) \
+    { .candidateId = (id), .mon = { .species = (speciesId), .lvl = (level), \
+      .gender = TRAINER_MON_RANDOM_GENDER, .ball = POKEBALL_COUNT, .nature = NATURE_HARDY } }
+
+// Namespace 2: Calvin; candidate IDs follow the explicit entries below.
+static const struct LARosterAuthoredRef sCalvinRetained[] =
+{
+    {0, SPECIES_SWELLOW},
+    {1, SPECIES_LINOONE},
+    {2, SPECIES_MIGHTYENA},
+};
+static const struct LARosterSupplement sCalvinSupplements[] =
+{
+    SOUTHWEST_SUPPLEMENT(1, SPECIES_SHROOMISH, 32),
+    SOUTHWEST_SUPPLEMENT(2, SPECIES_ELECTRIKE, 32),
+    SOUTHWEST_SUPPLEMENT(3, SPECIES_GULPIN, 32),
+};
+STATIC_ASSERT(ARRAY_COUNT(sCalvinRetained) + ARRAY_COUNT(sCalvinSupplements) == PARTY_SIZE, CalvinRosterSize)
+static const struct LARosterProfile sCalvinProfile =
+{
+    .retained = sCalvinRetained,
+    .supplements = sCalvinSupplements,
+    .namespaceId = 2,
+    .retainedCount = ARRAY_COUNT(sCalvinRetained),
+    .supplementCount = ARRAY_COUNT(sCalvinSupplements),
+};
+
+// Namespace 3: Winston; candidate IDs follow the explicit entries below.
+static const struct LARosterAuthoredRef sWinstonRetained[] =
+{
+    {0, SPECIES_LINOONE},
+};
+static const struct LARosterSupplement sWinstonSupplements[] =
+{
+    SOUTHWEST_SUPPLEMENT(1, SPECIES_ELECTRIKE, 34),
+    SOUTHWEST_SUPPLEMENT(2, SPECIES_SPOINK, 34),
+    SOUTHWEST_SUPPLEMENT(3, SPECIES_KECLEON, 34),
+    SOUTHWEST_SUPPLEMENT(4, SPECIES_MAWILE, 34),
+    SOUTHWEST_SUPPLEMENT(5, SPECIES_WINGULL, 34),
+};
+STATIC_ASSERT(ARRAY_COUNT(sWinstonRetained) + ARRAY_COUNT(sWinstonSupplements) == PARTY_SIZE, WinstonRosterSize)
+static const struct LARosterProfile sWinstonProfile =
+{
+    .retained = sWinstonRetained,
+    .supplements = sWinstonSupplements,
+    .namespaceId = 3,
+    .retainedCount = ARRAY_COUNT(sWinstonRetained),
+    .supplementCount = ARRAY_COUNT(sWinstonSupplements),
+};
+
+// Namespace 4: Cindy; candidate IDs follow the explicit entries below.
+static const struct LARosterAuthoredRef sCindyRetained[] =
+{
+    {0, SPECIES_LINOONE},
+};
+static const struct LARosterSupplement sCindySupplements[] =
+{
+    SOUTHWEST_SUPPLEMENT(1, SPECIES_SKITTY, 34),
+    SOUTHWEST_SUPPLEMENT(2, SPECIES_ROSELIA, 34),
+    SOUTHWEST_SUPPLEMENT(3, SPECIES_SWABLU, 34),
+    SOUTHWEST_SUPPLEMENT(4, SPECIES_BEAUTIFLY, 34),
+    SOUTHWEST_SUPPLEMENT(5, SPECIES_MARILL, 34),
+};
+STATIC_ASSERT(ARRAY_COUNT(sCindyRetained) + ARRAY_COUNT(sCindySupplements) == PARTY_SIZE, CindyRosterSize)
+static const struct LARosterProfile sCindyProfile =
+{
+    .retained = sCindyRetained,
+    .supplements = sCindySupplements,
+    .namespaceId = 4,
+    .retainedCount = ARRAY_COUNT(sCindyRetained),
+    .supplementCount = ARRAY_COUNT(sCindySupplements),
+};
+
+// Namespace 5: Haley; candidate IDs follow the explicit entries below.
+static const struct LARosterAuthoredRef sHaleyRetained[] =
+{
+    {0, SPECIES_SWELLOW},
+    {1, SPECIES_LOMBRE},
+    {2, SPECIES_BRELOOM},
+};
+static const struct LARosterSupplement sHaleySupplements[] =
+{
+    SOUTHWEST_SUPPLEMENT(1, SPECIES_ROSELIA, 34),
+    SOUTHWEST_SUPPLEMENT(2, SPECIES_WINGULL, 34),
+    SOUTHWEST_SUPPLEMENT(3, SPECIES_ILLUMISE, 34),
+};
+STATIC_ASSERT(ARRAY_COUNT(sHaleyRetained) + ARRAY_COUNT(sHaleySupplements) == PARTY_SIZE, HaleyRosterSize)
+static const struct LARosterProfile sHaleyProfile =
+{
+    .retained = sHaleyRetained,
+    .supplements = sHaleySupplements,
+    .namespaceId = 5,
+    .retainedCount = ARRAY_COUNT(sHaleyRetained),
+    .supplementCount = ARRAY_COUNT(sHaleySupplements),
+};
+
+// Namespace 6: James; candidate IDs follow the explicit entries below.
+static const struct LARosterAuthoredRef sJamesRetained[] =
+{
+    {0, SPECIES_SURSKIT},
+    {1, SPECIES_NINJASK},
+    {2, SPECIES_DUSTOX},
+    {3, SPECIES_NINJASK},
+};
+static const struct LARosterSupplement sJamesSupplements[] =
+{
+    SOUTHWEST_SUPPLEMENT(1, SPECIES_BEAUTIFLY, 33),
+    SOUTHWEST_SUPPLEMENT(2, SPECIES_VOLBEAT, 33),
+};
+STATIC_ASSERT(ARRAY_COUNT(sJamesRetained) + ARRAY_COUNT(sJamesSupplements) == PARTY_SIZE, JamesRosterSize)
+static const struct LARosterProfile sJamesProfile =
+{
+    .retained = sJamesRetained,
+    .supplements = sJamesSupplements,
+    .namespaceId = 6,
+    .retainedCount = ARRAY_COUNT(sJamesRetained),
+    .supplementCount = ARRAY_COUNT(sJamesSupplements),
+};
+
+#undef SOUTHWEST_SUPPLEMENT
+
 static const struct LARosterAssignment sLARosterAssignments[] =
 {
     {TRAINER_SAWYER_1, DIFFICULTY_NORMAL, &sSawyer1Profile},
@@ -124,4 +247,9 @@ static const struct LARosterAssignment sLARosterAssignments[] =
     {TRAINER_SAWYER_3, DIFFICULTY_NORMAL, &sSawyer3Profile},
     {TRAINER_SAWYER_4, DIFFICULTY_NORMAL, &sSawyer4Profile},
     {TRAINER_SAWYER_5, DIFFICULTY_NORMAL, &sSawyer5Profile},
+    {TRAINER_CALVIN_5, DIFFICULTY_NORMAL, &sCalvinProfile},
+    {TRAINER_WINSTON_5, DIFFICULTY_NORMAL, &sWinstonProfile},
+    {TRAINER_CINDY_6, DIFFICULTY_NORMAL, &sCindyProfile},
+    {TRAINER_HALEY_5, DIFFICULTY_NORMAL, &sHaleyProfile},
+    {TRAINER_JAMES_5, DIFFICULTY_NORMAL, &sJamesProfile},
 };

@@ -37,6 +37,8 @@ static const enum LATrainerCategory sLATrainerClassCategories[TRAINER_CLASS_COUN
     [TRAINER_CLASS_PIKE_QUEEN]     = LA_TRAINER_EXEMPT,
     [TRAINER_CLASS_PYRAMID_KING]   = LA_TRAINER_EXEMPT,
     [TRAINER_CLASS_FACTORY_HEAD]   = LA_TRAINER_EXEMPT,
+    [TRAINER_CLASS_PALACE_MAVEN]    = LA_TRAINER_EXEMPT,
+    [TRAINER_CLASS_ARENA_TYCOON]    = LA_TRAINER_EXEMPT,
     // Note: Frontier Brain is a trainer-id concept (EXEMPT via sentinel path),
     // not a trainer-class id here.
 };

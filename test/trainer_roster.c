@@ -548,3 +548,100 @@ TEST("Trainer Roster: selected difficulty fallback activates Normal Sawyer profi
     EXPECT_EQ(CountConstructed(), 6);
     SetCurrentDifficultyLevel(DIFFICULTY_NORMAL);
 }
+
+// Batch 1 fixtures reproduce authored species/levels; profiles are production data.
+struct SouthwestRosterCase
+{
+    u16 trainerId;
+    u8 namespaceId;
+    u8 retainedCount;
+    u8 anchor;
+    struct TrainerMon authored[4];
+    enum Species supplements[5];
+    u8 supplementLevel;
+};
+static const struct SouthwestRosterCase sSouthwestRosters[] =
+{
+    {TRAINER_CALVIN_5, 2, 3, 36,
+     {MON(SPECIES_SWELLOW, 34), MON(SPECIES_LINOONE, 32), MON(SPECIES_MIGHTYENA, 36)},
+     {SPECIES_SHROOMISH, SPECIES_ELECTRIKE, SPECIES_GULPIN}, 32},
+    {TRAINER_WINSTON_5, 3, 1, 36,
+     {MON(SPECIES_LINOONE, 36)},
+     {SPECIES_ELECTRIKE, SPECIES_SPOINK, SPECIES_KECLEON, SPECIES_MAWILE, SPECIES_WINGULL}, 34},
+    {TRAINER_CINDY_6, 4, 1, 36,
+     {MON(SPECIES_LINOONE, 36)},
+     {SPECIES_SKITTY, SPECIES_ROSELIA, SPECIES_SWABLU, SPECIES_BEAUTIFLY, SPECIES_MARILL}, 34},
+    {TRAINER_HALEY_5, 5, 3, 34,
+     {MON(SPECIES_SWELLOW, 34), MON(SPECIES_LOMBRE, 34), MON(SPECIES_BRELOOM, 34)},
+     {SPECIES_ROSELIA, SPECIES_WINGULL, SPECIES_ILLUMISE}, 34},
+    {TRAINER_JAMES_5, 6, 4, 33,
+     {MON(SPECIES_SURSKIT, 33), MON(SPECIES_NINJASK, 33), MON(SPECIES_DUSTOX, 33), MON(SPECIES_NINJASK, 33)},
+     {SPECIES_BEAUTIFLY, SPECIES_VOLBEAT}, 33},
+};
+
+TEST("Trainer Roster: Southwest five profiles retain exact sources and 18 stable supplements")
+{
+    u32 candidates = 0;
+    for (u32 i = 0; i < ARRAY_COUNT(sSouthwestRosters); i++)
+    {
+        const struct SouthwestRosterCase *c = &sSouthwestRosters[i];
+        const struct LARosterProfile *p = GetLARosterProfile(c->trainerId, DIFFICULTY_NORMAL);
+        ASSUME(p != NULL);
+        EXPECT_EQ(p->namespaceId, c->namespaceId);
+        EXPECT_EQ(p->retainedCount, c->retainedCount);
+        EXPECT_EQ(p->supplementCount, 6 - c->retainedCount);
+        const struct Trainer trainer = {.party = c->authored, .partySize = c->retainedCount};
+        struct LARosterSelection selected = SelectLARoster(&trainer, p, 6);
+        EXPECT_EQ(selected.status, LA_ROSTER_SELECTION_COMPLETE);
+        EXPECT_EQ(selected.count, 6);
+        u32 anchor = 0;
+        for (u32 j = 0; j < selected.count; j++)
+        {
+            if (selected.members[j].source->lvl > anchor)
+                anchor = selected.members[j].source->lvl;
+            if (j < c->retainedCount)
+            {
+                EXPECT_EQ(p->retained[j].sourceIndex, j);
+                EXPECT_EQ(p->retained[j].expectedSpecies, c->authored[j].species);
+                EXPECT(selected.members[j].source == &c->authored[j]);
+                EXPECT_EQ(selected.members[j].sourceKey, j);
+            }
+            else
+            {
+                u32 k = j - c->retainedCount;
+                const struct LARosterSupplement *s = &p->supplements[k];
+                EXPECT_EQ(s->candidateId, k + 1);
+                EXPECT_EQ(s->mon.species, c->supplements[k]);
+                EXPECT_EQ(s->mon.lvl, c->supplementLevel);
+                EXPECT_EQ(selected.members[j].sourceKey, 0x80000000u | ((u32)c->namespaceId << 16) | (k + 1));
+                struct TrainerMon expected = MON(c->supplements[k], c->supplementLevel);
+                expected.ball = POKEBALL_COUNT;
+                expected.nature = NATURE_HARDY;
+                EXPECT_EQ(memcmp(&s->mon, &expected, sizeof(expected)), 0);
+                candidates++;
+            }
+        }
+        EXPECT_EQ(anchor, c->anchor);
+    }
+    EXPECT_EQ(candidates, 18);
+}
+
+TEST("Trainer Roster: only Sawyer and five Southwest final encounters have profiles")
+{
+    u32 normalCount = 0;
+    for (u32 id = 0; id < TRAINERS_COUNT; id++)
+    {
+        bool32 expected = FALSE;
+        for (u32 i = 0; i < ARRAY_COUNT(sSawyerIds); i++)
+            if (id == sSawyerIds[i])
+                expected = TRUE;
+        for (u32 i = 0; i < ARRAY_COUNT(sSouthwestRosters); i++)
+            if (id == sSouthwestRosters[i].trainerId)
+                expected = TRUE;
+        EXPECT_EQ(GetLARosterProfile(id, DIFFICULTY_NORMAL) != NULL, expected);
+        normalCount += GetLARosterProfile(id, DIFFICULTY_NORMAL) != NULL;
+        EXPECT(GetLARosterProfile(id, DIFFICULTY_EASY) == NULL);
+        EXPECT(GetLARosterProfile(id, DIFFICULTY_HARD) == NULL);
+    }
+    EXPECT_EQ(normalCount, 10);
+}

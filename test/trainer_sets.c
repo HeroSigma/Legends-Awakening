@@ -9,6 +9,7 @@
 #include "trainer_rank.h"
 #include "world_state.h"
 #include "trainer_evolution.h"
+#include "trainer_scaling.h"
 #include "test/test.h"
 
 extern void TestCreateLATrainerPartyWithPolicyForId(struct Pokemon *, const struct Trainer *, u16, struct LATrainerPolicy);
@@ -192,11 +193,20 @@ static void CheckGenerated(struct Pokemon *mon, const struct LACompetitiveSet *s
     const u8 physical[] = {252, 252, 0, 0, 4, 0};
     const u8 special[] = {252, 0, 0, 252, 4, 0};
     const u8 utility[] = {252, 0, 252, 0, 4, 0};
+    const u8 fastPhysical[] = {0, 252, 0, 0, 4, 252};
+    const u8 fastSpecial[] = {0, 0, 0, 252, 4, 252};
+    const u8 specialDefense[] = {252, 0, 4, 0, 252, 0};
     const u8 *expected = physical;
     if (set->training->nature == NATURE_MODEST)
         expected = special;
     else if (set->training->nature == NATURE_IMPISH || set->training->nature == NATURE_BOLD)
         expected = utility;
+    else if (set->training->nature == NATURE_JOLLY)
+        expected = fastPhysical;
+    else if (set->training->nature == NATURE_TIMID)
+        expected = fastSpecial;
+    else if (set->training->nature == NATURE_CALM)
+        expected = specialDefense;
     const s32 evFields[] = {MON_DATA_HP_EV, MON_DATA_ATK_EV, MON_DATA_DEF_EV, MON_DATA_SPATK_EV, MON_DATA_SPDEF_EV, MON_DATA_SPEED_EV};
     const s32 ivFields[] = {MON_DATA_HP_IV, MON_DATA_ATK_IV, MON_DATA_DEF_IV, MON_DATA_SPATK_IV, MON_DATA_SPDEF_IV, MON_DATA_SPEED_IV};
     for (u32 i = 0; i < 6; i++)
@@ -408,4 +418,548 @@ TEST("Trainer Sets: canonical level-up, teachable and egg sources ignore current
     EXPECT(LASetSpeciesCanLearnMove(SPECIES_GEODUDE, MOVE_STEALTH_ROCK));
     EXPECT(LASetSpeciesCanLearnMove(SPECIES_TORKOAL, MOVE_YAWN));
     EXPECT(!LASetSpeciesCanLearnMove(SPECIES_GEODUDE, MOVE_SPORE));
+}
+
+// Frozen Batch 1 expectations. All lookups below use production assignments.
+enum SouthwestSetId
+{
+    SW_SET_Swellow,
+    SW_SET_LinooneField,
+    SW_SET_LinooneWinston,
+    SW_SET_LinooneCindy,
+    SW_SET_Mightyena,
+    SW_SET_Breloom,
+    SW_SET_Manectric,
+    SW_SET_Swalot,
+    SW_SET_Grumpig,
+    SW_SET_Kecleon,
+    SW_SET_Mawile,
+    SW_SET_Pelipper,
+    SW_SET_Skitty,
+    SW_SET_Roselia,
+    SW_SET_Swablu,
+    SW_SET_Altaria,
+    SW_SET_Beautifly,
+    SW_SET_Azumarill,
+    SW_SET_Lombre,
+    SW_SET_Illumise,
+    SW_SET_Masquerain,
+    SW_SET_NinjaskAce,
+    SW_SET_NinjaskCoverage,
+    SW_SET_Dustox,
+    SW_SET_Volbeat,
+    SW_SET_COUNT,
+};
+struct SouthwestSetExpected
+{
+    enum Species species;
+    u8 evs[6];
+    u8 nature;
+    u8 slot;
+    enum Ability ability;
+    enum Move moves[4];
+    enum Item item;
+};
+static const struct SouthwestSetExpected sSouthwestSets[] =
+{
+    [SW_SET_Swellow] = {SPECIES_SWELLOW, {0, 252, 0, 0, 4, 252}, NATURE_JOLLY, 0, ABILITY_GUTS,
+        {MOVE_BRAVE_BIRD, MOVE_QUICK_ATTACK, MOVE_FACADE, MOVE_STEEL_WING}, ITEM_SHARP_BEAK},
+    [SW_SET_LinooneField] = {SPECIES_LINOONE, {0, 252, 0, 0, 4, 252}, NATURE_JOLLY, 0, ABILITY_PICKUP,
+        {MOVE_BODY_SLAM, MOVE_THIEF, MOVE_DIG, MOVE_THUNDER_WAVE}, ITEM_SILK_SCARF},
+    [SW_SET_LinooneWinston] = {SPECIES_LINOONE, {0, 252, 0, 0, 4, 252}, NATURE_JOLLY, 1, ABILITY_GLUTTONY,
+        {MOVE_BELLY_DRUM, MOVE_DOUBLE_EDGE, MOVE_THIEF, MOVE_ROCK_SMASH}, ITEM_SITRUS_BERRY},
+    [SW_SET_LinooneCindy] = {SPECIES_LINOONE, {252, 0, 252, 0, 4, 0}, NATURE_IMPISH, 0, ABILITY_PICKUP,
+        {MOVE_BODY_SLAM, MOVE_BABY_DOLL_EYES, MOVE_THUNDER_WAVE, MOVE_REST}, ITEM_LEFTOVERS},
+    [SW_SET_Mightyena] = {SPECIES_MIGHTYENA, {252, 252, 0, 0, 4, 0}, NATURE_ADAMANT, 0, ABILITY_INTIMIDATE,
+        {MOVE_CRUNCH, MOVE_SUCKER_PUNCH, MOVE_ICE_FANG, MOVE_HOWL}, ITEM_BLACK_GLASSES},
+    [SW_SET_Breloom] = {SPECIES_BRELOOM, {252, 252, 0, 0, 4, 0}, NATURE_ADAMANT, 2, ABILITY_TECHNICIAN,
+        {MOVE_BULLET_SEED, MOVE_MACH_PUNCH, MOVE_ROCK_TOMB, MOVE_SWORDS_DANCE}, ITEM_BLACK_BELT},
+    [SW_SET_Manectric] = {SPECIES_MANECTRIC, {0, 0, 0, 252, 4, 252}, NATURE_TIMID, 1, ABILITY_LIGHTNING_ROD,
+        {MOVE_THUNDERBOLT, MOVE_LIGHT_SCREEN, MOVE_FLAMETHROWER, MOVE_THUNDER_WAVE}, ITEM_MAGNET},
+    [SW_SET_Swalot] = {SPECIES_SWALOT, {252, 0, 252, 0, 4, 0}, NATURE_BOLD, 1, ABILITY_STICKY_HOLD,
+        {MOVE_SLUDGE_BOMB, MOVE_GIGA_DRAIN, MOVE_YAWN, MOVE_ENCORE}, ITEM_SITRUS_BERRY},
+    [SW_SET_Grumpig] = {SPECIES_GRUMPIG, {252, 0, 0, 252, 4, 0}, NATURE_MODEST, 0, ABILITY_THICK_FAT,
+        {MOVE_PSYCHIC, MOVE_SHADOW_BALL, MOVE_THUNDER_WAVE, MOVE_TAUNT}, ITEM_TWISTED_SPOON},
+    [SW_SET_Kecleon] = {SPECIES_KECLEON, {252, 252, 0, 0, 4, 0}, NATURE_ADAMANT, 0, ABILITY_COLOR_CHANGE,
+        {MOVE_BODY_SLAM, MOVE_SHADOW_SNEAK, MOVE_BRICK_BREAK, MOVE_RECOVER}, ITEM_SITRUS_BERRY},
+    [SW_SET_Mawile] = {SPECIES_MAWILE, {252, 252, 0, 0, 4, 0}, NATURE_ADAMANT, 1, ABILITY_INTIMIDATE,
+        {MOVE_PLAY_ROUGH, MOVE_IRON_HEAD, MOVE_SUCKER_PUNCH, MOVE_SWORDS_DANCE}, ITEM_METAL_COAT},
+    [SW_SET_Pelipper] = {SPECIES_PELIPPER, {252, 0, 252, 0, 4, 0}, NATURE_BOLD, 0, ABILITY_KEEN_EYE,
+        {MOVE_SURF, MOVE_AIR_SLASH, MOVE_ROOST, MOVE_ICY_WIND}, ITEM_MYSTIC_WATER},
+    [SW_SET_Skitty] = {SPECIES_SKITTY, {252, 0, 252, 0, 4, 0}, NATURE_IMPISH, 0, ABILITY_CUTE_CHARM,
+        {MOVE_FAKE_OUT, MOVE_BODY_SLAM, MOVE_WISH, MOVE_HEAL_BELL}, ITEM_EVIOLITE},
+    [SW_SET_Roselia] = {SPECIES_ROSELIA, {252, 0, 0, 252, 4, 0}, NATURE_MODEST, 0, ABILITY_NATURAL_CURE,
+        {MOVE_GIGA_DRAIN, MOVE_SLUDGE_BOMB, MOVE_SPIKES, MOVE_SYNTHESIS}, ITEM_EVIOLITE},
+    [SW_SET_Swablu] = {SPECIES_SWABLU, {252, 0, 252, 0, 4, 0}, NATURE_IMPISH, 0, ABILITY_NATURAL_CURE,
+        {MOVE_BODY_SLAM, MOVE_ROOST, MOVE_SAFEGUARD, MOVE_SING}, ITEM_EVIOLITE},
+    [SW_SET_Altaria] = {SPECIES_ALTARIA, {252, 0, 252, 0, 4, 0}, NATURE_BOLD, 0, ABILITY_NATURAL_CURE,
+        {MOVE_DRAGON_PULSE, MOVE_FLAMETHROWER, MOVE_REST, MOVE_SLEEP_TALK}, ITEM_LEFTOVERS},
+    [SW_SET_Beautifly] = {SPECIES_BEAUTIFLY, {0, 0, 0, 252, 4, 252}, NATURE_TIMID, 0, ABILITY_SWARM,
+        {MOVE_BUG_BUZZ, MOVE_AIR_CUTTER, MOVE_GIGA_DRAIN, MOVE_QUIVER_DANCE}, ITEM_SITRUS_BERRY},
+    [SW_SET_Azumarill] = {SPECIES_AZUMARILL, {252, 252, 0, 0, 4, 0}, NATURE_ADAMANT, 1, ABILITY_HUGE_POWER,
+        {MOVE_WATERFALL, MOVE_PLAY_ROUGH, MOVE_BRICK_BREAK, MOVE_ICE_PUNCH}, ITEM_MYSTIC_WATER},
+    [SW_SET_Lombre] = {SPECIES_LOMBRE, {252, 0, 0, 252, 4, 0}, NATURE_MODEST, 2, ABILITY_OWN_TEMPO,
+        {MOVE_SURF, MOVE_GIGA_DRAIN, MOVE_ICE_BEAM, MOVE_FAKE_OUT}, ITEM_EVIOLITE},
+    [SW_SET_Illumise] = {SPECIES_ILLUMISE, {252, 0, 252, 0, 4, 0}, NATURE_BOLD, 2, ABILITY_PRANKSTER,
+        {MOVE_ENCORE, MOVE_THUNDER_WAVE, MOVE_BUG_BUZZ, MOVE_MOONLIGHT}, ITEM_SITRUS_BERRY},
+    [SW_SET_Masquerain] = {SPECIES_MASQUERAIN, {0, 0, 0, 252, 4, 252}, NATURE_TIMID, 0, ABILITY_INTIMIDATE,
+        {MOVE_BUG_BUZZ, MOVE_AIR_SLASH, MOVE_STUN_SPORE, MOVE_GIGA_DRAIN}, ITEM_SITRUS_BERRY},
+    [SW_SET_NinjaskAce] = {SPECIES_NINJASK, {0, 252, 0, 0, 4, 252}, NATURE_JOLLY, 0, ABILITY_SPEED_BOOST,
+        {MOVE_X_SCISSOR, MOVE_AERIAL_ACE, MOVE_SWORDS_DANCE, MOVE_PROTECT}, ITEM_LUM_BERRY},
+    [SW_SET_NinjaskCoverage] = {SPECIES_NINJASK, {0, 252, 0, 0, 4, 252}, NATURE_JOLLY, 0, ABILITY_SPEED_BOOST,
+        {MOVE_X_SCISSOR, MOVE_AERIAL_ACE, MOVE_DIG, MOVE_SCREECH}, ITEM_SHARP_BEAK},
+    [SW_SET_Dustox] = {SPECIES_DUSTOX, {252, 0, 4, 0, 252, 0}, NATURE_CALM, 0, ABILITY_SHIELD_DUST,
+        {MOVE_BUG_BUZZ, MOVE_SLUDGE_BOMB, MOVE_MOONLIGHT, MOVE_LIGHT_SCREEN}, ITEM_LEFTOVERS},
+    [SW_SET_Volbeat] = {SPECIES_VOLBEAT, {252, 0, 252, 0, 4, 0}, NATURE_BOLD, 2, ABILITY_PRANKSTER,
+        {MOVE_THUNDER_WAVE, MOVE_ENCORE, MOVE_BUG_BUZZ, MOVE_MOONLIGHT}, ITEM_SITRUS_BERRY},
+};
+struct SouthwestAssignmentExpected
+{
+    u16 trainerId;
+    u32 key;
+    enum Species authored;
+    enum SouthwestSetId setId;
+};
+static const struct SouthwestAssignmentExpected sSouthwestAssignments[] =
+{
+    {TRAINER_CALVIN_4, 0, SPECIES_SWELLOW, SW_SET_Swellow},
+    {TRAINER_CALVIN_4, 1, SPECIES_LINOONE, SW_SET_LinooneField},
+    {TRAINER_CALVIN_4, 2, SPECIES_MIGHTYENA, SW_SET_Mightyena},
+    {TRAINER_CALVIN_5, 0, SPECIES_SWELLOW, SW_SET_Swellow},
+    {TRAINER_CALVIN_5, 1, SPECIES_LINOONE, SW_SET_LinooneField},
+    {TRAINER_CALVIN_5, 2, SPECIES_MIGHTYENA, SW_SET_Mightyena},
+    {TRAINER_CALVIN_5, 0x80020001u, SPECIES_SHROOMISH, SW_SET_Breloom},
+    {TRAINER_CALVIN_5, 0x80020002u, SPECIES_ELECTRIKE, SW_SET_Manectric},
+    {TRAINER_CALVIN_5, 0x80020003u, SPECIES_GULPIN, SW_SET_Swalot},
+    {TRAINER_WINSTON_4, 0, SPECIES_LINOONE, SW_SET_LinooneWinston},
+    {TRAINER_WINSTON_5, 0, SPECIES_LINOONE, SW_SET_LinooneWinston},
+    {TRAINER_WINSTON_5, 0x80030001u, SPECIES_ELECTRIKE, SW_SET_Manectric},
+    {TRAINER_WINSTON_5, 0x80030002u, SPECIES_SPOINK, SW_SET_Grumpig},
+    {TRAINER_WINSTON_5, 0x80030003u, SPECIES_KECLEON, SW_SET_Kecleon},
+    {TRAINER_WINSTON_5, 0x80030004u, SPECIES_MAWILE, SW_SET_Mawile},
+    {TRAINER_WINSTON_5, 0x80030005u, SPECIES_WINGULL, SW_SET_Pelipper},
+    {TRAINER_CINDY_5, 0, SPECIES_LINOONE, SW_SET_LinooneCindy},
+    {TRAINER_CINDY_6, 0, SPECIES_LINOONE, SW_SET_LinooneCindy},
+    {TRAINER_CINDY_6, 0x80040001u, SPECIES_SKITTY, SW_SET_Skitty},
+    {TRAINER_CINDY_6, 0x80040002u, SPECIES_ROSELIA, SW_SET_Roselia},
+    {TRAINER_CINDY_6, 0x80040003u, SPECIES_SWABLU, SW_SET_Swablu},
+    {TRAINER_CINDY_6, 0x80040004u, SPECIES_BEAUTIFLY, SW_SET_Beautifly},
+    {TRAINER_CINDY_6, 0x80040005u, SPECIES_MARILL, SW_SET_Azumarill},
+    {TRAINER_HALEY_4, 0, SPECIES_LOMBRE, SW_SET_Lombre},
+    {TRAINER_HALEY_4, 1, SPECIES_BRELOOM, SW_SET_Breloom},
+    {TRAINER_HALEY_5, 0, SPECIES_SWELLOW, SW_SET_Swellow},
+    {TRAINER_HALEY_5, 1, SPECIES_LOMBRE, SW_SET_Lombre},
+    {TRAINER_HALEY_5, 2, SPECIES_BRELOOM, SW_SET_Breloom},
+    {TRAINER_HALEY_5, 0x80050001u, SPECIES_ROSELIA, SW_SET_Roselia},
+    {TRAINER_HALEY_5, 0x80050002u, SPECIES_WINGULL, SW_SET_Pelipper},
+    {TRAINER_HALEY_5, 0x80050003u, SPECIES_ILLUMISE, SW_SET_Illumise},
+    {TRAINER_JAMES_4, 0, SPECIES_SURSKIT, SW_SET_Masquerain},
+    {TRAINER_JAMES_4, 1, SPECIES_DUSTOX, SW_SET_Dustox},
+    {TRAINER_JAMES_4, 2, SPECIES_NINJASK, SW_SET_NinjaskAce},
+    {TRAINER_JAMES_5, 0, SPECIES_SURSKIT, SW_SET_Masquerain},
+    {TRAINER_JAMES_5, 1, SPECIES_NINJASK, SW_SET_NinjaskCoverage},
+    {TRAINER_JAMES_5, 2, SPECIES_DUSTOX, SW_SET_Dustox},
+    {TRAINER_JAMES_5, 3, SPECIES_NINJASK, SW_SET_NinjaskAce},
+    {TRAINER_JAMES_5, 0x80060001u, SPECIES_BEAUTIFLY, SW_SET_Beautifly},
+    {TRAINER_JAMES_5, 0x80060002u, SPECIES_VOLBEAT, SW_SET_Volbeat},
+};
+
+static void ExpectSouthwestSet(const struct LACompetitiveSet *set, enum SouthwestSetId id)
+{
+    const struct SouthwestSetExpected *e = &sSouthwestSets[id];
+    ASSUME(set != NULL);
+    ASSUME(set->training != NULL);
+    EXPECT_EQ(set->finalSpecies, e->species);
+    EXPECT_EQ(set->training->nature, e->nature);
+    EXPECT_EQ(set->abilitySlot, e->slot);
+    EXPECT_EQ(gSpeciesInfo[set->finalSpecies].abilities[set->abilitySlot], e->ability);
+    EXPECT_EQ(set->heldItem, e->item);
+    EXPECT_EQ(memcmp(set->moves, e->moves, sizeof(e->moves)), 0);
+    EXPECT_EQ(memcmp(set->training->evs, e->evs, sizeof(e->evs)), 0);
+    u32 total = 0;
+    for (u32 i = 0; i < 6; i++)
+    {
+        EXPECT(set->training->evs[i] <= 252);
+        total += set->training->evs[i];
+    }
+    EXPECT_EQ(total, 508);
+    for (u32 i = 0; i < 4; i++)
+        EXPECT(LASetSpeciesCanLearnMove(set->finalSpecies, set->moves[i]));
+}
+
+TEST("Trainer Sets: Southwest 40 exact assignments and 25 complete immutable records")
+{
+    bool32 seen[SW_SET_COUNT] = {0};
+    u32 records = 0;
+    rng_value_t r1 = gRngValue, r2 = gRng2Value;
+    for (u32 i = 0; i < ARRAY_COUNT(sSouthwestAssignments); i++)
+    {
+        const struct SouthwestAssignmentExpected *e = &sSouthwestAssignments[i];
+        const struct LASetBundle *bundle = GetLASetBundle(e->trainerId, DIFFICULTY_NORMAL, e->key, e->authored);
+        ASSUME(bundle != NULL);
+        EXPECT_EQ(bundle->count, e->setId == SW_SET_Swablu ? 2 : 1);
+        EXPECT(GetLASetBundle(e->trainerId, DIFFICULTY_EASY, e->key, e->authored) == NULL);
+        EXPECT(GetLASetBundle(e->trainerId, DIFFICULTY_HARD, e->key, e->authored) == NULL);
+        EXPECT(GetLASetBundle(e->trainerId, DIFFICULTY_NORMAL, e->key, SPECIES_MAGIKARP) == NULL);
+        for (u32 j = 0; j < bundle->count; j++)
+        {
+            enum SouthwestSetId setId = j == 0 ? e->setId : SW_SET_Altaria;
+            const struct LACompetitiveSet *set = bundle->variants[j];
+            ExpectSouthwestSet(set, setId);
+            struct LACompetitiveSet before = *set;
+            struct LASetTraining trainingBefore = *set->training;
+            struct TrainerMon mon = MON(set->finalSpecies, 50);
+            EXPECT(ApplyLACompetitiveSet(&mon, bundle));
+            EXPECT_EQ(mon.iv, LA_SET_PERFECT_IVS);
+            EXPECT_EQ(mon.ability, sSouthwestSets[setId].ability);
+            EXPECT_EQ(mon.species, set->finalSpecies);
+            EXPECT_EQ(mon.lvl, 50);
+            EXPECT_EQ(memcmp(set, &before, sizeof(before)), 0);
+            EXPECT_EQ(memcmp(set->training, &trainingBefore, sizeof(trainingBefore)), 0);
+            if (!seen[setId])
+            {
+                seen[setId] = TRUE;
+                records++;
+            }
+        }
+    }
+    EXPECT_EQ(ARRAY_COUNT(sSouthwestAssignments), 40);
+    EXPECT_EQ(records, 25);
+    EXPECT_EQ(memcmp(&r1, &gRngValue, sizeof(r1)), 0);
+    EXPECT_EQ(memcmp(&r2, &gRng2Value, sizeof(r2)), 0);
+}
+
+// The test ROM replaces gTrainers. These retain the real authored values,
+// including Nugget and the final Linoone custom moves, before the production pipeline.
+#define SW_MON(s, level, ivs, item) { .species = SPECIES_##s, .lvl = level, \
+    .iv = TRAINER_PARTY_IVS(ivs, ivs, ivs, ivs, ivs, ivs), .heldItem = ITEM_##item, \
+    .gender = TRAINER_MON_RANDOM_GENDER, .ball = POKEBALL_COUNT, .nature = NATURE_HARDY, .dynamaxLevel = MAX_DYNAMAX_LEVEL }
+#define SW_FINAL_LINOONE(ivs) { .species = SPECIES_LINOONE, .lvl = 36, \
+    .iv = TRAINER_PARTY_IVS(ivs, ivs, ivs, ivs, ivs, ivs), .heldItem = ITEM_NUGGET, \
+    .gender = TRAINER_MON_RANDOM_GENDER, .ball = POKEBALL_COUNT, .nature = NATURE_HARDY, .dynamaxLevel = MAX_DYNAMAX_LEVEL, \
+    .moves = {MOVE_FURY_SWIPES, MOVE_MUD_SPORT, MOVE_ODOR_SLEUTH, MOVE_SAND_ATTACK} }
+struct SouthwestEncounter
+{
+    u16 id;
+    u8 sourceCount;
+    u8 selectedCount;
+    u8 anchor;
+    struct TrainerMon sources[4];
+    u32 keys[6];
+    enum Species species[6];
+    u8 levels[6];
+};
+static const struct SouthwestEncounter sSouthwestEncounters[] =
+{
+    {TRAINER_CALVIN_4, 3, 3, 33,
+     {SW_MON(SWELLOW, 31, 3, NONE), SW_MON(LINOONE, 29, 3, NONE), SW_MON(MIGHTYENA, 33, 3, NONE)},
+     {0, 1, 2},
+     {SPECIES_SWELLOW, SPECIES_LINOONE, SPECIES_MIGHTYENA},
+     {31, 29, 33}},
+    {TRAINER_CALVIN_5, 3, 6, 36,
+     {SW_MON(SWELLOW, 34, 4, NONE), SW_MON(LINOONE, 32, 4, NONE), SW_MON(MIGHTYENA, 36, 4, NONE)},
+     {0, 1, 2, 0x80020001u, 0x80020002u, 0x80020003u},
+     {SPECIES_SWELLOW, SPECIES_LINOONE, SPECIES_MIGHTYENA, SPECIES_BRELOOM, SPECIES_MANECTRIC, SPECIES_SWALOT},
+     {34, 32, 36, 32, 32, 32}},
+    {TRAINER_WINSTON_4, 1, 1, 33,
+     {SW_MON(LINOONE, 33, 0, NUGGET)},
+     {0},
+     {SPECIES_LINOONE},
+     {33}},
+    {TRAINER_WINSTON_5, 1, 6, 36,
+     {SW_FINAL_LINOONE(0)},
+     {0, 0x80030001u, 0x80030002u, 0x80030003u, 0x80030004u, 0x80030005u},
+     {SPECIES_LINOONE, SPECIES_MANECTRIC, SPECIES_GRUMPIG, SPECIES_KECLEON, SPECIES_MAWILE, SPECIES_PELIPPER},
+     {36, 34, 34, 34, 34, 34}},
+    {TRAINER_CINDY_5, 1, 1, 33,
+     {SW_MON(LINOONE, 33, 3, NUGGET)},
+     {0},
+     {SPECIES_LINOONE},
+     {33}},
+    {TRAINER_CINDY_6, 1, 6, 36,
+     {SW_FINAL_LINOONE(4)},
+     {0, 0x80040001u, 0x80040002u, 0x80040003u, 0x80040004u, 0x80040005u},
+     {SPECIES_LINOONE, SPECIES_SKITTY, SPECIES_ROSELIA, SPECIES_SWABLU, SPECIES_BEAUTIFLY, SPECIES_AZUMARILL},
+     {36, 34, 34, 34, 34, 34}},
+    {TRAINER_HALEY_4, 2, 2, 32,
+     {SW_MON(LOMBRE, 32, 3, NONE), SW_MON(BRELOOM, 32, 3, NONE)},
+     {0, 1},
+     {SPECIES_LOMBRE, SPECIES_BRELOOM},
+     {32, 32}},
+    {TRAINER_HALEY_5, 3, 6, 34,
+     {SW_MON(SWELLOW, 34, 4, NONE), SW_MON(LOMBRE, 34, 4, NONE), SW_MON(BRELOOM, 34, 4, NONE)},
+     {0, 1, 2, 0x80050001u, 0x80050002u, 0x80050003u},
+     {SPECIES_SWELLOW, SPECIES_LOMBRE, SPECIES_BRELOOM, SPECIES_ROSELIA, SPECIES_PELIPPER, SPECIES_ILLUMISE},
+     {34, 34, 34, 34, 34, 34}},
+    {TRAINER_JAMES_4, 3, 3, 31,
+     {SW_MON(SURSKIT, 31, 3, NONE), SW_MON(DUSTOX, 31, 3, NONE), SW_MON(NINJASK, 31, 3, NONE)},
+     {0, 1, 2},
+     {SPECIES_MASQUERAIN, SPECIES_DUSTOX, SPECIES_NINJASK},
+     {31, 31, 31}},
+    {TRAINER_JAMES_5, 4, 6, 33,
+     {SW_MON(SURSKIT, 33, 4, NONE), SW_MON(NINJASK, 33, 4, NONE), SW_MON(DUSTOX, 33, 4, NONE), SW_MON(NINJASK, 33, 4, NONE)},
+     {0, 1, 2, 3, 0x80060001u, 0x80060002u},
+     {SPECIES_MASQUERAIN, SPECIES_NINJASK, SPECIES_DUSTOX, SPECIES_NINJASK, SPECIES_BEAUTIFLY, SPECIES_VOLBEAT},
+     {33, 33, 33, 33, 33, 33}},
+};
+#undef SW_MON
+#undef SW_FINAL_LINOONE
+
+extern void (*gTestLARosterSourceObserver)(u32);
+static u32 sSouthwestObservedKeys[6];
+static u32 sSouthwestObservedCount;
+static void ObserveSouthwestKey(u32 key)
+{
+    if (sSouthwestObservedCount < ARRAY_COUNT(sSouthwestObservedKeys))
+        sSouthwestObservedKeys[sSouthwestObservedCount] = key;
+    sSouthwestObservedCount++;
+}
+
+static void CheckSouthwestEncounter(u32 index, bool32 deltaOne)
+{
+    Setup();
+    const struct SouthwestEncounter *c = &sSouthwestEncounters[index];
+    if (deltaOne)
+    {
+        // Existing Phase 2 cell: ACE / MASTER = 37, empty player party.
+        SetTrainerRank(TRAINER_RANK_ACE);
+        SetWorldPhase(WORLD_PHASE_MASTER);
+    }
+    const struct Trainer trainer = {.party = c->sources, .partySize = c->sourceCount};
+    const struct LARosterProfile *profile = GetLARosterProfile(c->id, DIFFICULTY_NORMAL);
+    EXPECT_EQ(profile != NULL, c->selectedCount == 6);
+    struct LARosterSelectedMon selected[6] = {0};
+    if (profile != NULL)
+    {
+        struct LARosterSelection result = SelectLARoster(&trainer, profile, 6);
+        ASSUME(result.count == 6);
+        memcpy(selected, result.members, sizeof(selected));
+    }
+    else
+        for (u32 i = 0; i < c->sourceCount; i++)
+            selected[i] = (struct LARosterSelectedMon){&c->sources[i], i};
+    struct TrainerMon sourcesBefore[6];
+    u32 anchor = 0;
+    for (u32 i = 0; i < c->selectedCount; i++)
+    {
+        sourcesBefore[i] = *selected[i].source;
+        if (sourcesBefore[i].lvl > anchor)
+            anchor = sourcesBefore[i].lvl;
+    }
+    EXPECT_EQ(anchor, c->anchor);
+    u8 world = CalculateTrainerScalingWorldLevel(GetTrainerRank(), GetWorldPhase(), 0, 0);
+    u8 delta = CalculateTrainerLevelDelta(anchor, world, 0);
+    EXPECT_EQ(delta, deltaOne ? 1 : 0);
+    struct BattleHistory history = {0};
+    history.trainerItems[B_TRAINER_OPPONENT_A][0] = ITEM_FULL_RESTORE;
+    history.trainerItems[B_TRAINER_OPPONENT_A][1] = ITEM_HYPER_POTION;
+    struct BattleHistory before = history;
+    struct BattleHistory *oldHistory = gBattleHistory;
+    gBattleHistory = &history;
+    void (*oldObserver)(u32) = gTestLARosterSourceObserver;
+    sSouthwestObservedCount = 0;
+    gTestLARosterSourceObserver = ObserveSouthwestKey;
+    TestCreateLATrainerPartyWithPolicyForId(gParties[B_TRAINER_OPPONENT_A], &trainer, c->id, GetLATrainerPolicy(0));
+    gTestLARosterSourceObserver = oldObserver;
+    gBattleHistory = oldHistory;
+    EXPECT_EQ(memcmp(&before, &history, sizeof(history)), 0);
+    EXPECT_EQ(sSouthwestObservedCount, c->selectedCount);
+    for (u32 i = 0; i < c->selectedCount; i++)
+    {
+        EXPECT_EQ(sSouthwestObservedKeys[i], c->keys[i]);
+        EXPECT_EQ(selected[i].sourceKey, c->keys[i]);
+        EXPECT_EQ(memcmp(selected[i].source, &sourcesBefore[i], sizeof(sourcesBefore[i])), 0);
+        enum Species species = c->species[i];
+        if (deltaOne && species == SPECIES_SWABLU)
+            species = SPECIES_ALTARIA;
+        struct Pokemon *mon = &gParties[B_TRAINER_OPPONENT_A][i];
+        EXPECT_EQ(GetMonData(mon, MON_DATA_SPECIES), species);
+        EXPECT_EQ(GetMonData(mon, MON_DATA_LEVEL), c->levels[i] + delta);
+        const struct LASetBundle *bundle = GetLASetBundle(c->id, DIFFICULTY_NORMAL, c->keys[i], selected[i].source->species);
+        ASSUME(bundle != NULL);
+        const struct LACompetitiveSet *set = NULL;
+        for (u32 j = 0; j < bundle->count; j++)
+            if (bundle->variants[j]->finalSpecies == species)
+                set = bundle->variants[j];
+        ASSUME(set != NULL);
+        CheckGenerated(mon, set);
+        if (selected[i].source->heldItem == ITEM_NUGGET)
+            EXPECT(GetMonData(mon, MON_DATA_HELD_ITEM) != ITEM_NUGGET);
+    }
+    for (u32 i = c->selectedCount; i < 6; i++)
+        EXPECT_EQ(GetMonData(&gParties[B_TRAINER_OPPONENT_A][i], MON_DATA_SPECIES), SPECIES_NONE);
+    Setup();
+}
+
+TEST("Trainer Sets: Southwest CALVIN_4 exact production construction") { CheckSouthwestEncounter(0, FALSE); }
+
+TEST("Trainer Sets: Southwest CALVIN_5 exact production construction") { CheckSouthwestEncounter(1, FALSE); }
+
+TEST("Trainer Sets: Southwest WINSTON_4 exact production construction") { CheckSouthwestEncounter(2, FALSE); }
+
+TEST("Trainer Sets: Southwest WINSTON_5 exact production construction") { CheckSouthwestEncounter(3, FALSE); }
+
+TEST("Trainer Sets: Southwest CINDY_5 exact production construction") { CheckSouthwestEncounter(4, FALSE); }
+
+TEST("Trainer Sets: Southwest CINDY_6 exact production construction") { CheckSouthwestEncounter(5, FALSE); }
+
+TEST("Trainer Sets: Southwest HALEY_4 exact production construction") { CheckSouthwestEncounter(6, FALSE); }
+
+TEST("Trainer Sets: Southwest HALEY_5 exact production construction") { CheckSouthwestEncounter(7, FALSE); }
+
+TEST("Trainer Sets: Southwest JAMES_4 exact production construction") { CheckSouthwestEncounter(8, FALSE); }
+
+TEST("Trainer Sets: Southwest JAMES_5 exact production construction") { CheckSouthwestEncounter(9, FALSE); }
+
+TEST("Trainer Sets: Southwest Cindy real Phase 2 delta evolves bird at 35")
+{
+    CheckSouthwestEncounter(5, TRUE);
+}
+
+TEST("Trainer Sets: Southwest exactly twelve explicit held items are permitted")
+{
+    const enum Item allowed[] = {ITEM_LEFTOVERS, ITEM_EVIOLITE, ITEM_SITRUS_BERRY,
+        ITEM_LUM_BERRY, ITEM_SILK_SCARF, ITEM_BLACK_BELT, ITEM_SHARP_BEAK,
+        ITEM_MYSTIC_WATER, ITEM_MAGNET, ITEM_BLACK_GLASSES, ITEM_TWISTED_SPOON, ITEM_METAL_COAT};
+    struct LACompetitiveSet set = *GeodudeBundle()->variants[0];
+    const struct LACompetitiveSet *variants[] = {&set};
+    const struct LASetBundle bundle = {variants, 1};
+    // Enumerate every item ID: catches accidental broadening by effect/category.
+    for (u32 item = 0; item < ITEMS_COUNT; item++)
+    {
+        bool32 expected = FALSE;
+        for (u32 i = 0; i < ARRAY_COUNT(allowed); i++)
+            if (item == allowed[i])
+                expected = TRUE;
+        set.heldItem = item;
+        struct TrainerMon mon = MON(SPECIES_GEODUDE, 21);
+        struct TrainerMon before = mon;
+        EXPECT_EQ(ApplyLACompetitiveSet(&mon, &bundle), expected);
+        if (!expected)
+            EXPECT_EQ(memcmp(&mon, &before, sizeof(mon)), 0);
+        else
+            EXPECT_EQ(mon.heldItem, item);
+    }
+    set.heldItem = ITEMS_COUNT;
+    ExpectAtomicFailure(&set, SPECIES_GEODUDE);
+}
+
+struct SouthwestInactive
+{
+    u16 id;
+    u8 count;
+    struct TrainerMon sources[4];
+};
+#define SW_INACTIVE(s, l) MON(SPECIES_##s, l)
+static const struct SouthwestInactive sSouthwestInactive[] =
+{
+    {TRAINER_CALVIN_1, 1, {SW_INACTIVE(POOCHYENA, 5)}},
+    {TRAINER_CALVIN_2, 1, {SW_INACTIVE(MIGHTYENA, 27)}},
+    {TRAINER_CALVIN_3, 2, {SW_INACTIVE(SWELLOW, 28), SW_INACTIVE(MIGHTYENA, 30)}},
+    {TRAINER_WINSTON_1, 1, {SW_INACTIVE(ZIGZAGOON, 7)}},
+    {TRAINER_WINSTON_2, 1, {SW_INACTIVE(LINOONE, 27)}},
+    {TRAINER_WINSTON_3, 1, {SW_INACTIVE(LINOONE, 30)}},
+    {TRAINER_CINDY_1, 1, {SW_INACTIVE(ZIGZAGOON, 7)}},
+    {TRAINER_CINDY_2, 1, {SW_INACTIVE(ZIGZAGOON, 11)}},
+    {TRAINER_CINDY_3, 1, {SW_INACTIVE(LINOONE, 27)}},
+    {TRAINER_CINDY_4, 1, {SW_INACTIVE(LINOONE, 30)}},
+    {TRAINER_HALEY_1, 2, {SW_INACTIVE(LOTAD, 6), SW_INACTIVE(SHROOMISH, 6)}},
+    {TRAINER_HALEY_2, 2, {SW_INACTIVE(LOMBRE, 26), SW_INACTIVE(SHROOMISH, 26)}},
+    {TRAINER_HALEY_3, 2, {SW_INACTIVE(LOMBRE, 29), SW_INACTIVE(BRELOOM, 29)}},
+    {TRAINER_JAMES_1, 2, {SW_INACTIVE(NINCADA, 6), SW_INACTIVE(NINCADA, 6)}},
+    {TRAINER_JAMES_2, 1, {SW_INACTIVE(NINJASK, 27)}},
+    {TRAINER_JAMES_3, 2, {SW_INACTIVE(DUSTOX, 29), SW_INACTIVE(NINJASK, 29)}},
+    {TRAINER_RICK, 2, {SW_INACTIVE(WURMPLE, 4), SW_INACTIVE(WURMPLE, 4)}},
+    {TRAINER_TIANA, 2, {SW_INACTIVE(ZIGZAGOON, 4), SW_INACTIVE(SHROOMISH, 4)}},
+    {TRAINER_ALLEN, 2, {SW_INACTIVE(ZIGZAGOON, 4), SW_INACTIVE(TAILLOW, 3)}},
+    {TRAINER_BILLY, 2, {SW_INACTIVE(ZIGZAGOON, 5), SW_INACTIVE(SEEDOT, 7)}},
+    {TRAINER_DARIAN, 1, {SW_INACTIVE(MAGIKARP, 9)}},
+    {TRAINER_IVAN, 3, {SW_INACTIVE(MAGIKARP, 5), SW_INACTIVE(MAGIKARP, 6), SW_INACTIVE(MAGIKARP, 7)}},
+    {TRAINER_LYLE, 4, {SW_INACTIVE(WURMPLE, 3), SW_INACTIVE(WURMPLE, 3), SW_INACTIVE(WURMPLE, 3), SW_INACTIVE(WURMPLE, 3)}},
+};
+#undef SW_INACTIVE
+
+TEST("Trainer Sets: Southwest earlier stages Cindy 2 and seven controls remain unassigned")
+{
+    for (u32 i = 0; i < ARRAY_COUNT(sSouthwestInactive); i++)
+    {
+        Setup();
+        const struct SouthwestInactive *c = &sSouthwestInactive[i];
+        EXPECT(GetLARosterProfile(c->id, DIFFICULTY_NORMAL) == NULL);
+        struct TrainerMon sources[4];
+        memcpy(sources, c->sources, sizeof(sources));
+        // All earlier Winston/Cindy encounters retain their authored Nugget.
+        bool32 nugget = i >= 3 && i <= 9;
+        if (nugget)
+            sources[0].heldItem = ITEM_NUGGET;
+        if (c->id == TRAINER_CINDY_2)
+        {
+            sources[0].moves[0] = MOVE_TACKLE;
+            sources[0].moves[1] = MOVE_TAIL_WHIP;
+        }
+        for (u32 j = 0; j < c->count; j++)
+            EXPECT(GetLASetBundle(c->id, DIFFICULTY_NORMAL, j, sources[j].species) == NULL);
+        struct TrainerMon before[4];
+        memcpy(before, sources, sizeof(before));
+        const struct Trainer trainer = {.party = sources, .partySize = c->count};
+        TestCreateLATrainerPartyWithPolicyForId(gParties[B_TRAINER_OPPONENT_A], &trainer, c->id, GetLATrainerPolicy(0));
+        EXPECT_EQ(memcmp(before, sources, sizeof(before)), 0);
+        for (u32 j = 0; j < c->count; j++)
+        {
+            struct Pokemon *mon = &gParties[B_TRAINER_OPPONENT_A][j];
+            EXPECT_EQ(GetMonData(mon, MON_DATA_HP_IV), 0);
+            EXPECT_EQ(GetMonData(mon, MON_DATA_HP_EV), 0);
+            EXPECT_EQ(GetMonData(mon, MON_DATA_HELD_ITEM), sources[j].heldItem);
+        }
+        EXPECT_EQ(GetMonData(&gParties[B_TRAINER_OPPONENT_A][c->count], MON_DATA_SPECIES), SPECIES_NONE);
+        if (c->id == TRAINER_CINDY_2)
+        {
+            EXPECT_EQ(GetMonData(&gParties[B_TRAINER_OPPONENT_A][0], MON_DATA_MOVE1), MOVE_TACKLE);
+            EXPECT_EQ(GetMonData(&gParties[B_TRAINER_OPPONENT_A][0], MON_DATA_MOVE2), MOVE_TAIL_WHIP);
+            EXPECT_EQ(GetMonData(&gParties[B_TRAINER_OPPONENT_A][0], MON_DATA_MOVE3), MOVE_NONE);
+        }
+    }
+}
+
+TEST("Trainer Sets: Southwest James duplicate Ninjask retain distinct intent")
+{
+    const struct LASetBundle *coverage = GetLASetBundle(TRAINER_JAMES_5, DIFFICULTY_NORMAL, 1, SPECIES_NINJASK);
+    const struct LASetBundle *ace = GetLASetBundle(TRAINER_JAMES_5, DIFFICULTY_NORMAL, 3, SPECIES_NINJASK);
+    ASSUME(coverage != NULL && ace != NULL);
+    EXPECT(coverage != ace);
+    ExpectSouthwestSet(coverage->variants[0], SW_SET_NinjaskCoverage);
+    ExpectSouthwestSet(ace->variants[0], SW_SET_NinjaskAce);
+    EXPECT(GetLASetBundle(TRAINER_JAMES_4, DIFFICULTY_NORMAL, 2, SPECIES_NINJASK) == ace);
+    EXPECT(GetLASetBundle(TRAINER_JAMES_5, DIFFICULTY_NORMAL, 2, SPECIES_NINJASK) == NULL);
+}
+
+TEST("Trainer Sets: Southwest no manufactured stone evolutions even at level 100")
+{
+    const struct SouthwestAssignmentExpected *rows[] = {
+        &sSouthwestAssignments[18], // Cindy Skitty
+        &sSouthwestAssignments[19], // Cindy Roselia
+        &sSouthwestAssignments[23], // Haley Lombre
+    };
+    for (u32 i = 0; i < ARRAY_COUNT(rows); i++)
+    {
+        const struct SouthwestAssignmentExpected *row = rows[i];
+        EXPECT(row->authored == SPECIES_SKITTY || row->authored == SPECIES_ROSELIA || row->authored == SPECIES_LOMBRE);
+        struct TrainerMon mon = MON(row->authored, 100);
+        ApplyTrainerEvolution(&mon, NULL);
+        EXPECT_EQ(mon.species, row->authored);
+        const struct LASetBundle *bundle = GetLASetBundle(row->trainerId, DIFFICULTY_NORMAL, row->key, row->authored);
+        EXPECT(ApplyLACompetitiveSet(&mon, bundle));
+        EXPECT_EQ(mon.species, row->authored);
+        EXPECT_EQ(mon.heldItem, ITEM_EVIOLITE);
+    }
+}
+
+TEST("Trainer Sets: Southwest shared species reuse explicit bundle pointers")
+{
+    EXPECT(GetLASetBundle(TRAINER_CALVIN_5, DIFFICULTY_NORMAL, 0, SPECIES_SWELLOW)
+        == GetLASetBundle(TRAINER_HALEY_5, DIFFICULTY_NORMAL, 0, SPECIES_SWELLOW));
+    EXPECT(GetLASetBundle(TRAINER_CALVIN_5, DIFFICULTY_NORMAL, 0x80020002u, SPECIES_ELECTRIKE)
+        == GetLASetBundle(TRAINER_WINSTON_5, DIFFICULTY_NORMAL, 0x80030001u, SPECIES_ELECTRIKE));
+    EXPECT(GetLASetBundle(TRAINER_WINSTON_5, DIFFICULTY_NORMAL, 0x80030005u, SPECIES_WINGULL)
+        == GetLASetBundle(TRAINER_HALEY_5, DIFFICULTY_NORMAL, 0x80050002u, SPECIES_WINGULL));
 }
