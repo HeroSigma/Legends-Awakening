@@ -1,4 +1,5 @@
 #include "global.h"
+#include "trainer_sets.h"
 #include "data.h"
 #include "constants/trainers.h"
 #include "constants/battle_ai.h"
@@ -385,4 +386,14 @@ TEST("LA Trainer: Smart AI player partner keeps authored flags")
     if (authored & AI_FLAG_PREDICT_INCOMING_MON)
         authored |= AI_FLAG_PREDICT_SWITCH;
     EXPECT_EQ(flags, authored);
+}
+TEST("LA Trainer: competitive set permission is ordinary and orthogonal")
+{
+    EXPECT_EQ(LA_TRAINER_POLICY_COMPETITIVE_SETS, 1 << 8);
+    EXPECT(LA_POLICY_ORDINARY & LA_TRAINER_POLICY_COMPETITIVE_SETS);
+    EXPECT_EQ(LA_POLICY_MAJOR & LA_TRAINER_POLICY_COMPETITIVE_SETS, 0);
+    struct LATrainerPolicy policy = {LA_TRAINER_ORDINARY, LA_TRAINER_POLICY_COMPETITIVE_SETS};
+    EXPECT(CanApplyLACompetitiveSets(0, policy, TRUE, BATTLE_TYPE_TRAINER, FALSE));
+    policy.flags = LA_POLICY_ORDINARY & ~LA_TRAINER_POLICY_COMPETITIVE_SETS;
+    EXPECT(!CanApplyLACompetitiveSets(0, policy, TRUE, BATTLE_TYPE_TRAINER, FALSE));
 }

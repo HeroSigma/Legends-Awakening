@@ -29,12 +29,14 @@ enum LATrainerCategory
 #define LA_TRAINER_POLICY_MAJOR                (1 << 5)
 #define LA_TRAINER_POLICY_HANDCRAFTED          (1 << 6)
 #define LA_TRAINER_POLICY_EXEMPT               (1 << 7)
+#define LA_TRAINER_POLICY_COMPETITIVE_SETS     (1 << 8)
 
 #define LA_POLICY_ORDINARY   (LA_TRAINER_POLICY_SCALE_LEVEL   \
                             | LA_TRAINER_POLICY_SCALE_EVOLUTION \
                             | LA_TRAINER_POLICY_SMART_AI      \
                             | LA_TRAINER_POLICY_FULL_PARTY      \
-                            | LA_TRAINER_POLICY_COMPETITIVE_ITEMS)
+                            | LA_TRAINER_POLICY_COMPETITIVE_ITEMS \
+                            | LA_TRAINER_POLICY_COMPETITIVE_SETS)
 
 // MAJOR: handcrafted species are preserved; SCALE_EVOLUTION is NOT included
 #define LA_POLICY_MAJOR    (LA_TRAINER_POLICY_SCALE_LEVEL      \

@@ -5,6 +5,7 @@
 #include "trainer_scaling.h"
 #include "trainer_evolution.h"
 #include "trainer_roster.h"
+#include "trainer_sets.h"
 #include "trainer_rank.h"
 #include "world_state.h"
 #include "main.h"
@@ -2243,6 +2244,9 @@ static const struct LATrainerPolicy *sLATestPolicyOverride;
 static bool32 sLATestRosterOverride;
 static const struct LARosterProfile *sLATestRosterProfile;
 void (*gTestLARosterSourceObserver)(u32 sourceKey) = NULL;
+static bool32 sLATestSetOverride;
+static const struct LASetAssignment *sLATestSetAssignments;
+static u32 sLATestSetAssignmentCount;
 #endif
 
 static void CreateNPCTrainerPartyFromTrainerWithId(struct Pokemon *party, const struct Trainer *trainer, u16 trainerId, enum DifficultyLevel difficulty)
@@ -2295,6 +2299,7 @@ static void CreateNPCTrainerPartyFromTrainerWithId(struct Pokemon *party, const 
     }
     bool32 scaleLevel = eligible && LATrainerPolicyHas(policy, LA_TRAINER_POLICY_SCALE_LEVEL);
     bool32 scaleEvolution = eligible && LATrainerPolicyHas(policy, LA_TRAINER_POLICY_SCALE_EVOLUTION);
+    bool32 applySets = CanApplyLACompetitiveSets(trainerId, policy, eligible, gBattleTypeFlags, IsAiVsAiBattle());
     u8 worldLevel = 0;
     u8 authoredAnchor = 0;
     u8 levelDelta = 0;
@@ -2321,7 +2326,7 @@ static void CreateNPCTrainerPartyFromTrainerWithId(struct Pokemon *party, const 
         if (scaleLevel && levelDelta != 0)
             finalLevel = ApplyTrainerLevelDelta(srcMon->lvl, levelDelta);
 
-        if (finalLevel != srcMon->lvl || scaleEvolution)
+        if (finalLevel != srcMon->lvl || scaleEvolution || applySets)
         {
             // Only selected private copies can change. Evolution uses the final
             // slot level even when no level delta was necessary or permitted.
@@ -2335,6 +2340,18 @@ static void CreateNPCTrainerPartyFromTrainerWithId(struct Pokemon *party, const 
 #endif
                 ApplyTrainerEvolution(&workingMon, GetTrainerEvolutionProfile(
                     trainerId, difficulty, selected[i].sourceKey, srcMon->species));
+            }
+            if (applySets)
+            {
+                const struct LASetBundle *bundle;
+#if TESTING
+                if (sLATestSetOverride)
+                    bundle = FindLASetBundle(sLATestSetAssignments, sLATestSetAssignmentCount,
+                        trainerId, difficulty, selected[i].sourceKey, srcMon->species);
+                else
+#endif
+                    bundle = GetLASetBundle(trainerId, difficulty, selected[i].sourceKey, srcMon->species);
+                ApplyLACompetitiveSet(&workingMon, bundle);
             }
             GenerateMonFromTrainerMon(&party[i], &workingMon, trainerGen);
         }
@@ -2421,6 +2438,18 @@ void TestCreateLATrainerPartyWithPolicyForId(struct Pokemon *party, const struct
     sLATestPolicyOverride = &policy;
     TestCreateLATrainerParty(party, trainer, trainerId);
     sLATestPolicyOverride = NULL;
+}
+
+void TestCreateLATrainerSetParty(struct Pokemon *party, const struct Trainer *trainer,
+    u16 trainerId, struct LATrainerPolicy policy, const struct LASetAssignment *assignments, u32 count)
+{
+    sLATestSetOverride = TRUE;
+    sLATestSetAssignments = assignments;
+    sLATestSetAssignmentCount = count;
+    TestCreateLATrainerPartyWithPolicyForId(party, trainer, trainerId, policy);
+    sLATestSetOverride = FALSE;
+    sLATestSetAssignments = NULL;
+    sLATestSetAssignmentCount = 0;
 }
 #endif
 
